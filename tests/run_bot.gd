@@ -92,7 +92,7 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-## Buys what it can afford, monsters first, then a snack.
+## Buys what it can afford, in shop order: monsters, snacks, then the charm.
 func _shop() -> void:
 	RunShop.open_shop()
 	for k in Run.offers.size():
@@ -100,10 +100,13 @@ func _shop() -> void:
 		var price := int(Jokers.info(id)["price"])
 		if Run.gold < price:
 			continue
-		if Jokers.is_snack(id) and Run.snacks.size() < Jokers.MAX_SNACKS:
+		if Jokers.is_charm(id):
+			Run.add_charm(id)
+			Run.gold -= price
+		elif Jokers.is_snack(id) and Run.snacks.size() < Run.max_snacks():
 			Run.snacks.append(id)
 			Run.gold -= price
-		elif not Jokers.is_snack(id) and Run.jokers.size() < Jokers.MAX_JOKERS:
+		elif not Jokers.is_snack(id) and Run.jokers.size() < Run.max_jokers():
 			Run.jokers.append(id)
 			Run.gold -= price
 	Run.offers = []

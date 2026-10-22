@@ -54,7 +54,7 @@ static func _rng() -> RandomNumberGenerator:
 
 ## Rolls the offers for the coming round. While offers exist the run is "in the shop", so Continue comes back here.
 static func open_shop() -> void:
-	Run.offers = Jokers.roll_offers(_rng(), Run.jokers)
+	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.charms)
 	Run.rerolls = 0
 	Run.store()
 
@@ -78,25 +78,30 @@ func _rebuild() -> void:
 			continue
 		any = true
 		var price := int(Jokers.info(id)["price"])
-		var full := (Jokers.is_snack(id) and Run.snacks.size() >= Jokers.MAX_SNACKS) or (not Jokers.is_snack(id) and Run.jokers.size() >= Jokers.MAX_JOKERS)
+		var full := (Jokers.is_snack(id) and Run.snacks.size() >= Run.max_snacks()) or (not Jokers.is_snack(id) and not Jokers.is_charm(id) and Run.jokers.size() >= Run.max_jokers())
 		var label := "Full" if full else "%d gold" % price
 		var slot := k
 		list.add_child(_row(id, label, Color("a0603a"), not full and Run.gold >= price, func() -> void: _buy(slot)))
 	if not any:
 		list.add_child(_note("Sold out. Reroll for more."))
 
-	list.add_child(_heading("Your monsters (%d/%d)" % [Run.jokers.size(), Jokers.MAX_JOKERS]))
+	list.add_child(_heading("Your monsters (%d/%d)" % [Run.jokers.size(), Run.max_jokers()]))
 	if Run.jokers.is_empty():
 		list.add_child(_note("None yet. Monsters stay with you for the whole run."))
 	for id in Run.jokers.duplicate():
 		var jid: String = id
 		list.add_child(_row(jid, "Sell +%d" % _sell_price(jid), c_panel, true, func() -> void: _sell(jid)))
 
-	list.add_child(_heading("Snacks (%d/%d)" % [Run.snacks.size(), Jokers.MAX_SNACKS]))
+	list.add_child(_heading("Snacks (%d/%d)" % [Run.snacks.size(), Run.max_snacks()]))
 	if Run.snacks.is_empty():
 		list.add_child(_note("Snacks are used once, from the buttons under the board."))
 	for id in Run.snacks:
 		list.add_child(_row(id, "", c_panel, false, Callable()))
+
+	if not Run.charms.is_empty():
+		list.add_child(_heading("Charms"))
+		for id in Run.charms:
+			list.add_child(_row(id, "", c_panel, false, Callable()))
 
 
 static func _sell_price(id: String) -> int:
@@ -109,7 +114,9 @@ func _buy(slot: int) -> void:
 	if Run.gold < price:
 		return
 	Run.gold -= price
-	if Jokers.is_snack(id):
+	if Jokers.is_charm(id):
+		Run.add_charm(id)
+	elif Jokers.is_snack(id):
 		Run.snacks.append(id)
 	else:
 		Run.jokers.append(id)
@@ -134,7 +141,7 @@ func _reroll() -> void:
 		return
 	Run.gold -= cost
 	Run.rerolls += 1
-	Run.offers = Jokers.roll_offers(_rng(), Run.jokers)
+	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.charms)
 	Run.store()
 	Sfx.play("power")
 	_rebuild()
@@ -158,7 +165,8 @@ func _row(id: String, btn_text: String, btn_color: Color, enabled: bool, on_pres
 	var info := Jokers.info(id)
 	var card := PanelContainer.new()
 	var sb := UI.panel_style(Color("2a241c"), 26)
-	sb.border_color = UI.INK
+	# Rare monsters get a golden frame.
+	sb.border_color = Color(Jokers.RARITY_COLORS[Jokers.RARE]) if Jokers.JOKERS.has(id) and Jokers.rarity(id) == Jokers.RARE else UI.INK
 	sb.set_border_width_all(4)
 	sb.content_margin_left = 14
 	sb.content_margin_right = 16
@@ -176,9 +184,12 @@ func _row(id: String, btn_text: String, btn_color: Color, enabled: bool, on_pres
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_child(v)
-	var name_l := UI.label(str(info["name"]) + ("  (snack)" if Jokers.is_snack(id) else ""), 30, Color.WHITE)
+	var name_l := UI.label(str(info["name"]), 30, Color.WHITE)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(name_l)
+	var tag := UI.label(_tag(id), 20, _tag_color(id))
+	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	v.add_child(tag)
 	var desc := UI.label(str(info["desc"]), 23, c_muted)
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -191,6 +202,23 @@ func _row(id: String, btn_text: String, btn_color: Color, enabled: bool, on_pres
 		b.pressed.connect(on_press)
 		h.add_child(b)
 	return card
+
+
+## "Rare monster", "Snack (one use)", "Charm (lasts the run)".
+static func _tag(id: String) -> String:
+	if Jokers.is_snack(id):
+		return "Snack (one use)"
+	if Jokers.is_charm(id):
+		return "Charm (lasts the run)"
+	return "%s monster" % Jokers.RARITY_NAMES[Jokers.rarity(id)]
+
+
+static func _tag_color(id: String) -> Color:
+	if Jokers.is_snack(id):
+		return Color("e88aa8")
+	if Jokers.is_charm(id):
+		return Color("f0d060")
+	return Color(Jokers.RARITY_COLORS[Jokers.rarity(id)])
 
 
 class JokerIcon extends Control:

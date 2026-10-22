@@ -28,6 +28,7 @@ func _ready() -> void:
 
 	Run.jokers = ["blob", "grub", "bat"]
 	Run.snacks = ["tongue", "slam"]
+	Run.charms = ["dice"]
 	Run.gold = 12
 	Run.round_n = 11
 	Run.offers = []
@@ -70,8 +71,16 @@ func _ready() -> void:
 	await _wait(2.4)
 	await _shot("run_over")
 
-	# App icon: the sleeping toad on the lair floor, cropped square and saved as res://icon.png.
+	# Every monster, snack and charm on one sheet, to check they all look different.
 	router.queue_free()
+	var sheet := ItemSheet.new()
+	get_tree().root.add_child(sheet)
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	await _wait(0.3)
+	await _shot("run_items")
+	sheet.queue_free()
+
+	# App icon: the sleeping toad on the lair floor, cropped square and saved as res://icon.png.
 	var icon := IconArt.new()
 	get_tree().root.add_child(icon)
 	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -83,6 +92,20 @@ func _ready() -> void:
 	img.resize(512, 512, Image.INTERPOLATE_LANCZOS)
 	img.save_png(ProjectSettings.globalize_path("res://icon.png"))
 	get_tree().quit()
+
+
+class ItemSheet extends Control:
+	func _draw() -> void:
+		draw_rect(Rect2(Vector2.ZERO, size), Color("2a2219"))
+		var ids: Array = Jokers.JOKERS.keys() + Jokers.SNACKS.keys() + Jokers.CHARMS.keys()
+		var cols := 5
+		var w := size.x / cols
+		var h := 112.0
+		var font := UI.display_font()
+		for k in ids.size():
+			var c := Vector2((k % cols + 0.5) * w, 50 + (k / cols) * h)
+			Jokers.draw_icon(self, ids[k], c, 38, 0.5)
+			draw_string(font, c + Vector2(-w / 2, 58), str(Jokers.info(ids[k])["name"]), HORIZONTAL_ALIGNMENT_CENTER, w, 16, Color.WHITE)
 
 
 class IconArt extends Control:

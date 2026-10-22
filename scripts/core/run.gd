@@ -23,6 +23,8 @@ static var squashed := 0
 static var gold := 0
 static var jokers: Array = []
 static var snacks: Array = []
+## Toad charms bought this run (permanent upgrades, see Jokers.CHARMS).
+static var charms: Array = []
 ## Shop offers for the round about to start (kept so leaving the app can't reroll them).
 static var offers: Array = []
 static var rerolls := 0
@@ -36,6 +38,7 @@ static func start_new() -> void:
 	gold = 4
 	jokers = []
 	snacks = []
+	charms = []
 	offers = []
 	rerolls = 0
 	store()
@@ -52,6 +55,7 @@ static func resume() -> bool:
 	gold = int(r.get("gold", 0))
 	jokers = Array(r.get("jokers", []))
 	snacks = Array(r.get("snacks", []))
+	charms = Array(r.get("charms", []))
 	offers = Array(r.get("offers", []))
 	rerolls = int(r.get("rerolls", 0))
 	return true
@@ -64,7 +68,7 @@ static func has_saved() -> bool:
 
 static func store() -> void:
 	Save.data["run"] = {"round": round_n, "naps": naps, "total": total, "squashed": squashed,
-		"gold": gold, "jokers": jokers, "snacks": snacks, "offers": offers, "rerolls": rerolls}
+		"gold": gold, "jokers": jokers, "snacks": snacks, "charms": charms, "offers": offers, "rerolls": rerolls}
 	Save.save()
 
 
@@ -108,20 +112,43 @@ static func target(r: int) -> int:
 
 
 static func pieces(r: int) -> int:
-	return PIECES[slot_of(r)] + (2 if has("troll") else 0)
+	return PIECES[slot_of(r)] + (2 if has("troll") else 0) + (1 if charms.has("lantern") else 0)
 
 
 static func has(joker: String) -> bool:
 	return jokers.has(joker)
 
 
-## Gold for winning a round: 3, +1 per unused piece, +1 per 5 gold saved (up to +3), plus the Goblin Banker.
+static func max_jokers() -> int:
+	return Jokers.MAX_JOKERS + (1 if charms.has("den") else 0)
+
+
+static func max_snacks() -> int:
+	return Jokers.MAX_SNACKS + (1 if charms.has("pocket") else 0)
+
+
+static func max_naps() -> int:
+	return MAX_NAPS + (1 if charms.has("pillow") else 0)
+
+
+## Buys a charm: it lasts for the rest of the run (the pillow also hands over its nap at once).
+static func add_charm(id: String) -> void:
+	charms.append(id)
+	if id == "pillow":
+		naps = mini(naps + 1, max_naps())
+
+
+## Gold for winning a round: 3, +1 per unused piece, +1 per 5 gold saved (up to +3; more with
+## the Miser Mole or the Fat Purse), plus the Goblin Banker and the Hermit Crab.
 ## Returns the parts so the round-end screen can list them.
 static func round_reward(pieces_left: int) -> Array:
 	var parts: Array = [["Round cleared", 3]]
 	if pieces_left > 0:
 		parts.append(["Unused pieces", pieces_left])
-	var interest := mini(3, gold / 5)
+		if has("crab"):
+			parts.append(["Hermit Crab", pieces_left])
+	var cap := (6 if has("miser") else 3) + (2 if charms.has("purse") else 0)
+	var interest := mini(cap, gold / 5)
 	if interest > 0:
 		parts.append(["Savings", interest])
 	if has("goblin"):
@@ -130,7 +157,7 @@ static func round_reward(pieces_left: int) -> Array:
 
 
 static func reroll_cost() -> int:
-	return 2 + rerolls
+	return maxi(0, 2 + rerolls - (1 if charms.has("dice") else 0))
 
 
 static func round_name(r: int) -> String:

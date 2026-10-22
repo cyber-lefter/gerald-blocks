@@ -143,13 +143,18 @@ func _build_bar() -> void:
 		# Runs swap power-ups for the toad's snacks (one button per slot), with the round,
 		# the pieces left and the monster jokers in the middle.
 		bar.add_theme_constant_override("separation", 10)
-		for k in Jokers.MAX_SNACKS:
+		for k in Run.max_snacks():
 			var sb := SnackButton.new()
 			sb.slot = k
 			var slot := k
 			sb.pressed.connect(func() -> void: _on_snack(slot))
 			snack_buttons.append(sb)
 		bar.add_child(snack_buttons[0])
+		# A third slot (Deep Pocket charm) sits next to the first; the buttons get a little narrower.
+		if snack_buttons.size() > 2:
+			bar.add_child(snack_buttons[2])
+			for b in snack_buttons:
+				b.custom_minimum_size = Vector2(112, 130)
 		var info := VBoxContainer.new()
 		info.alignment = BoxContainer.ALIGNMENT_CENTER
 		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -596,7 +601,7 @@ func _show_run_intro() -> void:
 	var body: Array = [[Run.round_name(r), 34, Color.WHITE], [_round_goal_text(r), 38, c_gold]]
 	if Run.is_raid(r):
 		body.append(["Heroes are coming! Fill a row or column through a hero to squash him. Every hero that reaches the bed costs the toad a nap.", 26, c_muted])
-	body.append(["Naps left: %d of %d" % [Run.naps, Run.MAX_NAPS], 26, c_muted])
+	body.append(["Naps left: %d of %d" % [Run.naps, Run.max_naps()], 26, c_muted])
 	_dialog("intro", "Night %d · Round %d" % [Run.night_of(r), Run.slot_of(r) + 1], body, [["Let's go", c_green, _close_dialog]])
 
 
@@ -608,7 +613,7 @@ func _end_round_win() -> void:
 	body.append(["Goal %s · %d piece%s to spare" % [UI.fmt(view.target), view.pieces_left, "" if view.pieces_left == 1 else "s"], 26, c_muted])
 	if view.squashed > 0:
 		body.append(["%d hero%s squashed" % [view.squashed, "" if view.squashed == 1 else "es"], 28, c_gold])
-	if Run.is_raid(r) and Run.naps < Run.MAX_NAPS:
+	if Run.is_raid(r) and Run.naps < Run.max_naps():
 		Run.naps += 1
 		body.append(["Raid survived: +1 nap", 28, c_gold])
 	Run.round_n = r + 1

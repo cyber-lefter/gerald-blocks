@@ -33,7 +33,7 @@ static func draw_bed(ci: CanvasItem, r: Rect2, cell: float, t: float, mood: Stri
 		ci.draw_string(font, r.position + Vector2(cell * (3.1 + zk * 0.4), h * (0.3 - zk * 0.5)), "z", HORIZONTAL_ALIGNMENT_LEFT, -1,
 			int(cell * (0.3 + 0.18 * zk)), Color(CREAM, 0.85 * (1.0 - zk)))
 	# Naps left this run: a row of little pillows on the right.
-	for i in Run.MAX_NAPS:
+	for i in Run.max_naps():
 		var p := r.end - Vector2(cell * (0.55 + 0.75 * i), h * 0.5)
 		var pts := FmmArt.blobp(p, cell * 0.3, cell * 0.2, 10, 3 + i, 0.08)
 		if i < naps:
