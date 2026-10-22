@@ -8,12 +8,12 @@ const NIGHTS := 8
 const ROUNDS_PER_NIGHT := 3
 const MAX_NAPS := 3
 const ROUND_NAMES := ["Light snooze", "Deep sleep", "Hero raid"]
-# Score needed in round 1 of each night; deep sleep asks 1.3x, and raids 1.8x because squashed
-# heroes pay well (their danger is the naps). Later nights expect a few monster jokers.
-# Tuned with tests/run_bot.gd (--calibrate), which shops like a cautious player.
-const BASE_TARGET := [120, 170, 240, 320, 420, 540, 680, 850]
-const TARGET_MULT := [1.0, 1.3, 1.8]
-const PIECES := [15, 15, 18]
+# Score needed in round 1 of each night; deep sleep asks 1.3x, and raids 1.6x because squashed
+# heroes pay well (their danger is the naps). Tuned with tests/run_bot.gd (--calibrate) so a
+# player without monsters gets through the early nights; later nights expect a few monsters.
+const BASE_TARGET := [100, 140, 190, 250, 320, 400, 490, 600]
+const TARGET_MULT := [1.0, 1.3, 1.6]
+const PIECES := [18, 18, 22]
 
 ## The current run, mirrored to Save so it survives closing the app (resumes at round start).
 static var round_n := 1

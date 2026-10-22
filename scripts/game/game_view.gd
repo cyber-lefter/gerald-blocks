@@ -1136,7 +1136,7 @@ func _hero_tricks() -> void:
 						_text("Freeze!", c - Vector2(0, cell * 0.6), cell * 0.45, false)
 						Sfx.play("ice")
 			"thief":
-				if int(h["moves"]) % 4 == 0:
+				if int(h["moves"]) % 5 == 0:
 					var full: Array = []
 					for k in 3:
 						if tray[k] != null:
