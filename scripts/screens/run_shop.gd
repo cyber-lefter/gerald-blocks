@@ -1,14 +1,17 @@
 class_name RunShop
 extends Control
-## Between rounds: spend gold on monster jokers (kept for the run) and toad snacks (one use each).
+## Between rounds: spend gold on monster jokers (kept and levelled up for the run), line totems
+## (level up a kind of clear, no cap), toad snacks (one use each), mystery sacks and charms.
 
 var router
 var list: VBoxContainer
 var gold_label: Label
 var reroll_btn: Button
+var next_btn: Button
 var c_panel := Color("3a3028")
 var c_muted := Color("a09480")
 var c_gold := Color("f0d060")
+var c_buy := Color("a0603a")
 
 
 func _ready() -> void:
@@ -34,14 +37,15 @@ func _ready() -> void:
 	reroll_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	reroll_btn.pressed.connect(_reroll)
 	buttons.add_child(reroll_btn)
-	var next := UI.button("Next round", Color("6a8a3a"), 34, 100)
-	next.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	next.pressed.connect(func() -> void:
+	next_btn = UI.button("Next round", Color("6a8a3a"), 34, 100)
+	next_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	next_btn.pressed.connect(func() -> void:
 		Run.offers = []
 		Run.rerolls = 0
+		Run.sack = []
 		Run.store()
 		router.start_game("run"))
-	buttons.add_child(next)
+	buttons.add_child(next_btn)
 	_rebuild()
 
 
@@ -54,8 +58,9 @@ static func _rng() -> RandomNumberGenerator:
 
 ## Rolls the offers for the coming round. While offers exist the run is "in the shop", so Continue comes back here.
 static func open_shop() -> void:
-	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.charms)
+	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.jlevels, Run.charms)
 	Run.rerolls = 0
+	Run.sack = []
 	Run.store()
 
 
@@ -68,58 +73,71 @@ func _rebuild() -> void:
 		c.queue_free()
 	gold_label.text = "%d gold" % Run.gold
 	reroll_btn.text = "Reroll (%d gold)" % Run.reroll_cost()
-	reroll_btn.disabled = Run.gold < Run.reroll_cost()
+	reroll_btn.disabled = Run.gold < Run.reroll_cost() or not Run.sack.is_empty()
+
+	if not Run.sack.is_empty():
+		# An open sack: pick one monster (or leave them all) before shopping on.
+		list.add_child(_heading("Mystery Sack: pick one"))
+		for k in Run.sack.size():
+			var offer: String = Run.sack[k]
+			var why := Run.blocked(offer)
+			var slot := k
+			list.add_child(_offer_row(offer, "Take" if why == "" else why, Color("6a8a3a"), why == "", func() -> void: _pick(slot)))
+		var skip := UI.button("Leave them", c_panel, 28, 80)
+		skip.pressed.connect(func() -> void:
+			Run.sack = []
+			Run.store()
+			_rebuild())
+		list.add_child(skip)
+		return
 
 	list.add_child(_heading("For sale"))
 	var any := false
 	for k in Run.offers.size():
-		var id: String = Run.offers[k]
-		if id == "":
+		var offer: String = Run.offers[k]
+		if offer == "":
 			continue
 		any = true
-		var price := int(Jokers.info(id)["price"])
-		var full := (Jokers.is_snack(id) and Run.snacks.size() >= Run.max_snacks()) or (not Jokers.is_snack(id) and not Jokers.is_charm(id) and Run.jokers.size() >= Run.max_jokers())
-		var label := "Full" if full else "%d gold" % price
+		var price := Run.price(offer)
+		var why := Run.blocked(offer)
 		var slot := k
-		list.add_child(_row(id, label, Color("a0603a"), not full and Run.gold >= price, func() -> void: _buy(slot)))
+		list.add_child(_offer_row(offer, why if why != "" else "%d gold" % price, c_buy, why == "" and Run.gold >= price, func() -> void: _buy(slot)))
 	if not any:
 		list.add_child(_note("Sold out. Reroll for more."))
 
 	list.add_child(_heading("Your monsters (%d/%d)" % [Run.jokers.size(), Run.max_jokers()]))
 	if Run.jokers.is_empty():
-		list.add_child(_note("None yet. Monsters stay with you for the whole run."))
+		list.add_child(_note("None yet. Monsters stay for the whole run. Buy one again to level it up."))
 	for id in Run.jokers.duplicate():
 		var jid: String = id
-		list.add_child(_row(jid, "Sell +%d" % _sell_price(jid), c_panel, true, func() -> void: _sell(jid)))
+		var e := str(Run.editions.get(jid, ""))
+		list.add_child(_row(jid if e == "" else "%s|%s" % [jid, e], _monster_title(jid, Run.level(jid)), _monster_tag(jid, e), _tag_color(jid, e),
+			_owned_desc(jid, e), "Sell +%d" % Run.sell_price(jid), c_panel, true, func() -> void: _sell(jid)))
+
+	if not Run.totems.is_empty():
+		list.add_child(_heading("Your totems"))
+		for id in Jokers.TOTEMS:
+			if Run.totem(id) > 0:
+				var info: Dictionary = Jokers.TOTEMS[id]
+				list.add_child(_row(id, "%s  Lv %d" % [info["name"], Run.totem(id)], "Totem", Color("8fb04a"),
+					"%s: +%d points" % [info["desc"], int(info["per"]) * Run.totem(id)], "", c_panel, false, Callable()))
 
 	list.add_child(_heading("Snacks (%d/%d)" % [Run.snacks.size(), Run.max_snacks()]))
 	if Run.snacks.is_empty():
 		list.add_child(_note("Snacks are used once, from the buttons under the board."))
 	for id in Run.snacks:
-		list.add_child(_row(id, "", c_panel, false, Callable()))
+		list.add_child(_offer_row(id, "", c_panel, false, Callable()))
 
 	if not Run.charms.is_empty():
 		list.add_child(_heading("Charms"))
 		for id in Run.charms:
-			list.add_child(_row(id, "", c_panel, false, Callable()))
-
-
-static func _sell_price(id: String) -> int:
-	return maxi(1, int(Jokers.info(id)["price"]) / 2)
+			list.add_child(_offer_row(id, "", c_panel, false, Callable()))
 
 
 func _buy(slot: int) -> void:
-	var id: String = Run.offers[slot]
-	var price := int(Jokers.info(id)["price"])
-	if Run.gold < price:
+	var offer: String = Run.offers[slot]
+	if not Run.buy(offer):
 		return
-	Run.gold -= price
-	if Jokers.is_charm(id):
-		Run.add_charm(id)
-	elif Jokers.is_snack(id):
-		Run.snacks.append(id)
-	else:
-		Run.jokers.append(id)
 	Run.offers[slot] = ""
 	Run.store()
 	Sfx.play("coin")
@@ -127,9 +145,17 @@ func _buy(slot: int) -> void:
 	_rebuild()
 
 
+func _pick(k: int) -> void:
+	if not Run.pick_from_sack(k):
+		return
+	Run.store()
+	Sfx.play("win")
+	Sfx.vibrate(30, false, 0.6)
+	_rebuild()
+
+
 func _sell(id: String) -> void:
-	Run.jokers.erase(id)
-	Run.gold += _sell_price(id)
+	Run.sell(id)
 	Run.store()
 	Sfx.play("drop")
 	_rebuild()
@@ -141,7 +167,7 @@ func _reroll() -> void:
 		return
 	Run.gold -= cost
 	Run.rerolls += 1
-	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.charms)
+	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.jlevels, Run.charms)
 	Run.store()
 	Sfx.play("power")
 	_rebuild()
@@ -160,13 +186,85 @@ func _note(text: String) -> Label:
 	return l
 
 
-## One card: the monster, its name and what it does, and a button (buy, sell, or none).
-func _row(id: String, btn_text: String, btn_color: Color, enabled: bool, on_press: Callable) -> PanelContainer:
+static func _monster_title(id: String, lv: int) -> String:
+	var n := str(Jokers.JOKERS[id]["name"])
+	return n if lv <= 1 else "%s  Lv %d" % [n, lv]
+
+
+static func _monster_tag(id: String, e: String) -> String:
+	var t := "%s monster" % Jokers.RARITY_NAMES[Jokers.rarity(id)]
+	if Jokers.grows(id):
+		t = "Growing · " + t
+	if e != "":
+		t = "%s · %s" % [Jokers.EDITIONS[e]["name"], t]
+	return t
+
+
+static func _tag_color(id: String, e := "") -> Color:
+	if e != "":
+		return Color(str(Jokers.EDITIONS[e]["color"]))
+	if Jokers.is_monster(id):
+		return Color(Jokers.RARITY_COLORS[Jokers.rarity(id)])
+	if Jokers.is_snack(id):
+		return Color("e88aa8")
+	if Jokers.is_totem(id):
+		return Color("8fb04a")
+	return Color("f0d060")
+
+
+## A monster the run owns: what it does now, what it has grown to, and its shine.
+static func _owned_desc(id: String, e: String) -> String:
+	var d := Jokers.desc(id, Run.level(id))
+	if Jokers.grows(id):
+		var g := Run.grown(id)
+		d += "  (now %s%s)" % ["x" if id == "yeti" else "+", Jokers.fmt(1.0 + g if id == "yeti" else g)]
+	if e != "":
+		d += ". %s" % Jokers.EDITIONS[e]["desc"]
+	return d
+
+
+## One card for anything the shop shows: a fresh monster or a level-up, a totem, a snack,
+## a charm or a sack.
+func _offer_row(offer: String, btn_text: String, btn_color: Color, enabled: bool, on_press: Callable) -> PanelContainer:
+	var id := Jokers.base(offer)
+	var e := Jokers.edition(offer)
 	var info := Jokers.info(id)
+	var title := str(info["name"])
+	var tag := ""
+	var desc := str(info.get("desc", ""))
+	if Jokers.is_monster(id):
+		var lv := Run.level(id) + 1
+		title = _monster_title(id, lv)
+		tag = "Level up · " + _monster_tag(id, e) if Run.level(id) > 0 else _monster_tag(id, e)
+		desc = Jokers.desc(id, lv)
+		if e != "":
+			desc += ". %s" % Jokers.EDITIONS[e]["desc"]
+	elif Jokers.is_totem(id):
+		var lv := Run.totem(id) + 1
+		title = "%s  Lv %d" % [title, lv]
+		tag = "Totem (no level cap)"
+		desc = "%s: +%d points (+%d per level)" % [desc, int(info["per"]) * lv, int(info["per"])]
+	elif Jokers.is_snack(id):
+		tag = "Snack (one use)"
+	elif Jokers.is_sack(id):
+		tag = "Surprise"
+	else:
+		tag = "Charm (lasts the run)"
+	return _row(offer, title, tag, _tag_color(id, e), desc, btn_text, btn_color, enabled, on_press)
+
+
+## One card: the picture, name, a coloured tag, what it does, and a button (buy, sell, or none).
+func _row(icon_id: String, title: String, tag: String, tag_color: Color, desc_text: String, btn_text: String, btn_color: Color,
+		enabled: bool, on_press: Callable) -> PanelContainer:
+	var id := Jokers.base(icon_id)
 	var card := PanelContainer.new()
 	var sb := UI.panel_style(Color("2a241c"), 26)
-	# Rare monsters get a golden frame.
-	sb.border_color = Color(Jokers.RARITY_COLORS[Jokers.RARE]) if Jokers.JOKERS.has(id) and Jokers.rarity(id) == Jokers.RARE else UI.INK
+	# Rare and shiny monsters get a coloured frame.
+	sb.border_color = UI.INK
+	if Jokers.edition(icon_id) != "":
+		sb.border_color = Color(str(Jokers.EDITIONS[Jokers.edition(icon_id)]["color"]))
+	elif Jokers.is_monster(id) and Jokers.rarity(id) == Jokers.RARE:
+		sb.border_color = Color(Jokers.RARITY_COLORS[Jokers.RARE])
 	sb.set_border_width_all(4)
 	sb.content_margin_left = 14
 	sb.content_margin_right = 16
@@ -177,20 +275,20 @@ func _row(id: String, btn_text: String, btn_color: Color, enabled: bool, on_pres
 	h.add_theme_constant_override("separation", 14)
 	card.add_child(h)
 	var icon := JokerIcon.new()
-	icon.id = id
+	icon.id = icon_id
 	icon.custom_minimum_size = Vector2(96, 96)
 	h.add_child(icon)
 	var v := VBoxContainer.new()
 	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_child(v)
-	var name_l := UI.label(str(info["name"]), 30, Color.WHITE)
+	var name_l := UI.label(title, 30, Color.WHITE)
 	name_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(name_l)
-	var tag := UI.label(_tag(id), 20, _tag_color(id))
-	tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	v.add_child(tag)
-	var desc := UI.label(str(info["desc"]), 23, c_muted)
+	var tag_l := UI.label(tag, 20, tag_color)
+	tag_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	v.add_child(tag_l)
+	var desc := UI.label(desc_text, 23, c_muted)
 	desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(desc)
@@ -202,23 +300,6 @@ func _row(id: String, btn_text: String, btn_color: Color, enabled: bool, on_pres
 		b.pressed.connect(on_press)
 		h.add_child(b)
 	return card
-
-
-## "Rare monster", "Snack (one use)", "Charm (lasts the run)".
-static func _tag(id: String) -> String:
-	if Jokers.is_snack(id):
-		return "Snack (one use)"
-	if Jokers.is_charm(id):
-		return "Charm (lasts the run)"
-	return "%s monster" % Jokers.RARITY_NAMES[Jokers.rarity(id)]
-
-
-static func _tag_color(id: String) -> Color:
-	if Jokers.is_snack(id):
-		return Color("e88aa8")
-	if Jokers.is_charm(id):
-		return Color("f0d060")
-	return Color(Jokers.RARITY_COLORS[Jokers.rarity(id)])
 
 
 class JokerIcon extends Control:

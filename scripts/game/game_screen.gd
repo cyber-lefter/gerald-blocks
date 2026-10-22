@@ -620,6 +620,7 @@ func _end_round_win() -> void:
 	if r >= Run.last_round():
 		_dialog_run_complete()
 		return
+	Run.round_won()
 	var earned := 0
 	var parts: Array = []
 	for part in Run.round_reward(view.pieces_left):
@@ -732,5 +733,12 @@ class JokerStrip extends Control:
 		var n := Run.jokers.size()
 		var step := size.y * 1.15
 		for k in n:
+			var id: String = Run.jokers[k]
 			var c := Vector2(size.x / 2.0 + (k - (n - 1) / 2.0) * step, size.y / 2.0)
-			Jokers.draw_icon(self, Run.jokers[k], c, size.y * 0.42, t + k)
+			var e := str(Run.editions.get(id, ""))
+			Jokers.draw_icon(self, id if e == "" else "%s|%s" % [id, e], c, size.y * 0.42, t + k)
+			# Level pips under the face.
+			for j in Run.level(id) - 1:
+				var p := c + Vector2((j - (Run.level(id) - 2) / 2.0) * 9.0, size.y * 0.46)
+				draw_circle(p, 4.5, FmmArt.INK)
+				draw_circle(p, 3.0, FmmArt.C_GOLD)

@@ -188,7 +188,7 @@ func setup(p_mode: String, p_level: Dictionary) -> void:
 		dealer.ramp = 0.15
 		spawn_in += _hero_delay()
 		if _joker("moth"):
-			score = 25
+			score = int(Run.v("moth"))
 		if raid:
 			_spawn_hero()
 			_spawn_hero()
@@ -488,7 +488,7 @@ func _place(slot: int, gx: int, gy: int) -> void:
 		pieces_left -= 1
 	score += cells.size()
 	if _joker("tadpole"):
-		score += cells.size() * 3
+		score += cells.size() * int(Run.v("tadpole"))
 	# Small random pitch changes keep repeated placements from sounding mechanical; bigger pieces sound heavier.
 	Sfx.play("place", randf_range(0.95, 1.05) * (1.08 - 0.02 * cells.size()))
 	Sfx.vibrate(16, false, 0.6)
@@ -529,11 +529,11 @@ func _place(slot: int, gx: int, gy: int) -> void:
 				orb_from.append(_cell_center(int(key) % N, int(key) / N))
 		var res := _destroy(hit, origin)
 
-		var mult := 1.0 + (1.0 if _joker("bat") else 0.5) * (streak - 1)
-		var mono_x := 2 if _joker("toadstool") else 1
+		var mult := 1.0 + (Run.v("bat") if _joker("bat") else 0.5) * (streak - 1)
+		var mono_x := int(Run.v("toadstool")) - 1 if _joker("toadstool") else 1
 		var pts := int(line_count * line_count * 20 * mult) * (1 + mono * mono_x)
 		pts += blasted * 5 + int(res["gems"]) * 50
-		pts = _joker_points(pts, line_count, rows, cols)
+		pts = _joker_points(pts, line_count, rows, cols, mono)
 		if honey:
 			honey = false
 			pts *= 3
@@ -599,10 +599,10 @@ func _place(slot: int, gx: int, gy: int) -> void:
 		Sfx.vibrate(60 if big else 30, true, 1.0 if big else 0.7)
 	else:
 		if _joker("slime"):
-			score += 6
-			_joker_pop("slime", "+6")
+			score += int(Run.v("slime"))
+			_joker_pop("slime", "+%d" % int(Run.v("slime")))
 		missed += 1
-		if missed >= (5 if _joker("ghost") else 3):
+		if missed >= (int(Run.v("ghost")) if _joker("ghost") else 3):
 			streak = 0
 			if in_fever:
 				in_fever = false
@@ -617,38 +617,75 @@ func _joker(id: String) -> bool:
 	return mode == "run" and Run.has(id)
 
 
-## Monster jokers that change what a clear is worth. Each one that fires gets a pop.
-func _joker_points(pts: int, line_count: int, rows: Array, cols: Array) -> int:
+## Monsters, totems and shiny monsters that change what a clear is worth. Points are added
+## first, then the multipliers stack. Each monster that fires gets a pop.
+func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: int) -> int:
 	if mode != "run":
 		return pts
-	if _joker("cyclops") and line_count == 1:
-		pts *= 2
-		_joker_pop("cyclops", "x2")
-	if _joker("octo") and not rows.is_empty() and not cols.is_empty():
-		pts *= 3
-		_joker_pop("octo", "x3")
-	if _joker("owl") and raid:
-		pts = int(pts * 1.5)
-		_joker_pop("owl", "x1.5")
-	if _joker("mimic") and line_count >= 2:
-		Run.gold += 1
-		_joker_pop("mimic", "+1 gold")
+	# Totems: one pop for all of them.
+	var tot := 0
+	if line_count == 1:
+		tot += Run.totem("t_one") * 15
+	elif line_count == 2:
+		tot += Run.totem("t_two") * 40
+	else:
+		tot += Run.totem("t_many") * 80
+	tot += Run.totem("t_colour") * 30 * mono
+	if streak >= 2:
+		tot += Run.totem("t_combo") * 20
+	if tot > 0:
+		pts += tot
+		joker_pops.append("Totems +%d" % tot)
 	if _joker("blob"):
-		pts += 15 * line_count
-		_joker_pop("blob", "+%d" % (15 * line_count))
+		var b := int(Run.v("blob")) * line_count
+		pts += b
+		_joker_pop("blob", "+%d" % b)
+	if _joker("worm"):
+		var w := int(Run.grown("worm")) * line_count
+		Run.add_grow("worm", line_count)
+		if w > 0:
+			pts += w
+			_joker_pop("worm", "+%d" % w)
+	if _joker("hoarder") and Run.grown("hoarder") > 0:
+		pts += int(Run.grown("hoarder"))
+		_joker_pop("hoarder", "+%d" % int(Run.grown("hoarder")))
+	var foil := Run.shiny("foil")
+	if foil > 0:
+		pts += 30 * foil
+		joker_pops.append("Foil +%d" % (30 * foil))
+	if _joker("mimic") and line_count >= 2:
+		Run.gold += int(Run.v("mimic"))
+		_joker_pop("mimic", "+%d gold" % int(Run.v("mimic")))
+	var x := 1.0
+	if _joker("cyclops") and line_count == 1:
+		x *= Run.v("cyclops")
+		_joker_pop("cyclops", "x" + Jokers.fmt(Run.v("cyclops")))
+	if _joker("octo") and not rows.is_empty() and not cols.is_empty():
+		x *= Run.v("octo")
+		_joker_pop("octo", "x" + Jokers.fmt(Run.v("octo")))
+	if _joker("owl") and raid:
+		x *= Run.v("owl")
+		_joker_pop("owl", "x" + Jokers.fmt(Run.v("owl")))
 	if _joker("grub"):
 		for y in rows:
 			if int(y) >= N - 2:
-				pts *= 2
-				_joker_pop("grub", "x2")
+				x *= Run.v("grub")
+				_joker_pop("grub", "x" + Jokers.fmt(Run.v("grub")))
 				break
 	if _joker("mouth") and line_count >= 3:
-		pts *= 2
-		_joker_pop("mouth", "x2")
+		x *= Run.v("mouth")
+		_joker_pop("mouth", "x" + Jokers.fmt(Run.v("mouth")))
 	if _joker("lucky") and clears == 0:
-		pts *= 3
-		_joker_pop("lucky", "x3")
-	return pts
+		x *= Run.v("lucky")
+		_joker_pop("lucky", "x" + Jokers.fmt(Run.v("lucky")))
+	if _joker("yeti") and Run.grown("yeti") > 0:
+		var y := 1.0 + Run.grown("yeti")
+		x *= y
+		_joker_pop("yeti", "x" + Jokers.fmt(y))
+	for k in Run.shiny("rainbow"):
+		x *= 1.5
+		joker_pops.append("Rainbow x1.5")
+	return int(pts * x)
 
 
 func _joker_pop(id: String, what: String) -> void:
@@ -812,7 +849,7 @@ func _after_run_move() -> void:
 		return
 	if raid and placements != advanced_at:
 		advanced_at = placements
-		if not (_joker("snail") and placements % 2 == 1):
+		if not (_joker("snail") and placements % int(Run.v("snail")) != 0):
 			_advance_heroes()
 			_hero_tricks()
 		spawn_in -= 1
@@ -1019,7 +1056,7 @@ func _reach_bed(h: Dictionary) -> void:
 
 ## Pieces between hero arrivals in a raid: the Web Spider and the Cow Bell each add one.
 func _hero_delay() -> int:
-	return (1 if _joker("spider") else 0) + (1 if Run.charms.has("bell") else 0)
+	return int(Run.v("spider")) + (1 if Run.charms.has("bell") else 0)
 
 
 ## Heroes standing in cleared lines take a hit; the ones that run out of armour get flung off screen.
@@ -1030,7 +1067,7 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 		var i := int(h["y"]) * N + int(h["x"])
 		if not hit.has(i) and not (_joker("hedgehog") and _next_to_hit(hit, int(h["x"]), int(h["y"]))):
 			continue
-		h["hp"] = int(h["hp"]) - (2 if _joker("golem") else 1)
+		h["hp"] = int(h["hp"]) - (int(Run.v("golem")) if _joker("golem") else 1)
 		k += 1
 		var c := _cell_center(float(h["x"]), float(h["y"]))
 		if int(h["hp"]) <= 0:
@@ -1039,12 +1076,7 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 			flyers.append({"look": _look(h), "p": c,
 				"v": Vector2(randf_range(-500, 500), randf_range(-1100, -700)) * cell / 60.0,
 				"r": 0.0, "vr": randf_range(-24, 24), "t0": time, "yelp": YELPS.pick_random()})
-			var bonk := int(60 * mult * k)
-			if _joker("bones"):
-				bonk *= 2
-				_joker_pop("bones", "x2")
-			pts += bonk
-			_rat_gold()
+			pts += _squash_bonus(int(60 * mult * k))
 			if h["type"] == "bomber":
 				pts += _bomber_blast(int(h["x"]), int(h["y"]))
 			_text("BONK!", c - Vector2(0, cell * 0.4), cell * 0.85, true, 0.04)
@@ -1065,17 +1097,29 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 
 func _next_to_hit(hit: Dictionary, x: int, y: int) -> bool:
 	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-		var nx: int = x + d.x
-		var ny: int = y + d.y
-		if nx >= 0 and ny >= 0 and nx < N and ny < N and hit.has(ny * N + nx):
-			return true
+		for r in range(1, int(Run.v("hedgehog")) + 1):
+			var nx: int = x + d.x * r
+			var ny: int = y + d.y * r
+			if nx >= 0 and ny >= 0 and nx < N and ny < N and hit.has(ny * N + nx):
+				return true
 	return false
 
 
-func _rat_gold() -> void:
+## What a squashed (or eaten) hero pays, with everything that cares about squashing.
+func _squash_bonus(base: int) -> int:
+	var pts := base
+	if _joker("bones"):
+		pts = int(pts * Run.v("bones"))
+		_joker_pop("bones", "x" + Jokers.fmt(Run.v("bones")))
+	var tot := Run.totem("t_squash") * 30
+	if tot > 0:
+		pts += tot
+		joker_pops.append("Squash Totem +%d" % tot)
 	if _joker("rat"):
-		Run.gold += 1
-		_joker_pop("rat", "+1 gold")
+		Run.gold += int(Run.v("rat"))
+		_joker_pop("rat", "+%d gold" % int(Run.v("rat")))
+	Run.add_grow("hoarder")
+	return pts
 
 
 ## A squashed bomber goes off: the blocks around him are blown away (5 points each).
@@ -1249,9 +1293,8 @@ func _eat_hero(c: Vector2i) -> void:
 	heroes.erase(h)
 	squashed += 1
 	var p := _cell_center(float(c.x), float(c.y))
-	var pts := 60 * (2 if _joker("bones") else 1)
+	var pts := _squash_bonus(60)
 	score += pts
-	_rat_gold()
 	_show_joker_pops()
 	_text("GULP! +%d" % pts, p - Vector2(0, cell * 0.4), cell * 0.7, true)
 	# The hero is yanked down into the nest.

@@ -389,8 +389,60 @@ static func draw_snack(ci: CanvasItem, icon: String, c: Vector2, r: float, col: 
 			var f := PackedVector2Array([Vector2(-30, 40), Vector2(-26, 0), Vector2(0, -36), Vector2(30, -44), Vector2(22, -12), Vector2(-6, 24)])
 			_fill(ci, f, col)
 			ci.draw_line(Vector2(-34, 46), Vector2(24, -38), INK, 4.0, true)
+		"sack":
+			var bag := PackedVector2Array([Vector2(-14, -30), Vector2(14, -30), Vector2(10, -22), Vector2(38, 4), Vector2(40, 30),
+				Vector2(24, 42), Vector2(-24, 42), Vector2(-40, 30), Vector2(-38, 4), Vector2(-10, -22)])
+			_fill(ci, bag, col)
+			ci.draw_line(Vector2(-14, -22), Vector2(14, -22), Color("e0b040"), 6.0, true)
+			_flat(ci, _tri(Vector2(-12, -30), Vector2(-22, -44), Vector2(0, -34)), col)
+			_flat(ci, _tri(Vector2(12, -30), Vector2(22, -44), Vector2(0, -34)), col)
+			var f := UI.display_font()
+			ci.draw_string(f, Vector2(-12, 30), "?", HORIZONTAL_ALIGNMENT_CENTER, 24, 40, FmmArt.C_GOLD)
 		_:
 			_fill(ci, FmmArt.oval(Vector2.ZERO, 40, 31, 18), col)
+	_end(ci)
+
+
+## A shiny monster's glow: a soft halo and a few twinkles in the shine's colour.
+static func draw_shine(ci: CanvasItem, e: String, c: Vector2, r: float, t: float) -> void:
+	var col := Color(str(Jokers.EDITIONS[e]["color"]))
+	for k in 4:
+		ci.draw_circle(c, r * (1.25 - k * 0.1), Color(col, 0.08 + 0.05 * k))
+	for k in 5:
+		var a := TAU * k / 5.0 + t * 0.8
+		var hue := fmod(k / 5.0 + t * 0.2, 1.0)
+		var tw := col if e != "rainbow" else Color.from_hsv(hue, 0.6, 1.0)
+		var p := c + Vector2(cos(a), sin(a)) * r * 1.12
+		var s := r * (0.1 + 0.05 * sin(t * 4.0 + k))
+		ci.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -s * 2), p + Vector2(s * 0.5, 0), p + Vector2(0, s * 2), p + Vector2(-s * 0.5, 0)]), tw)
+		ci.draw_colored_polygon(PackedVector2Array([p + Vector2(-s * 2, 0), p + Vector2(0, s * 0.5), p + Vector2(s * 2, 0), p + Vector2(0, -s * 0.5)]), tw)
+
+
+## A carved stone totem with its sign: 1, 2, 3 stacked bars, a rainbow, a hero, a chain.
+static func draw_totem(ci: CanvasItem, id: String, c: Vector2, r: float, col: Color) -> void:
+	_begin(ci, c, r)
+	var stone := Color("8a8274")
+	_fill(ci, PackedVector2Array([Vector2(-26, -44), Vector2(26, -44), Vector2(30, 38), Vector2(-30, 38)]), stone)
+	_flat(ci, _rect(-38, 34, 38, 46), stone.darkened(0.3))
+	_flat(ci, FmmArt.oval(Vector2(0, -6), 20, 26, 14), col)
+	match id:
+		"t_one", "t_two", "t_many":
+			var n: int = {"t_one": 1, "t_two": 2, "t_many": 3}[id]
+			for k in n:
+				var y: float = -6.0 + (k - (n - 1) / 2.0) * 12.0
+				ci.draw_line(Vector2(-10, y), Vector2(10, y), INK, 6.0)
+		"t_colour":
+			for k in 3:
+				ci.draw_arc(Vector2(0, 6), 14.0 - k * 5.0, PI, TAU, 10, [Color("d05848"), Color("e0a040"), Color("6aa0c0")][k], 4.0)
+		"t_squash":
+			ci.draw_circle(Vector2(0, -14), 6, INK)
+			ci.draw_line(Vector2(0, -8), Vector2(0, 8), INK, 5.0)
+			ci.draw_line(Vector2(-10, 12), Vector2(10, 12), INK, 5.0)
+		"t_combo":
+			ci.draw_polyline(PackedVector2Array([Vector2(-10, -20), Vector2(4, -6), Vector2(-6, -2), Vector2(10, 14)]), INK, 5.0)
+	# Carved eyes on the totem's head.
+	for sx in [-1.0, 1.0]:
+		ci.draw_line(Vector2(sx * 6 - 6, -36), Vector2(sx * 6 + 6, -36), INK, 4.0)
 	_end(ci)
 
 

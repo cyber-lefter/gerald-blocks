@@ -26,7 +26,11 @@ func _ready() -> void:
 	await _wait(0.3)
 	await _shot("run_round1")
 
-	Run.jokers = ["blob", "grub", "bat"]
+	Run.jokers = ["blob", "worm", "bat"]
+	Run.jlevels = {"blob": 2, "worm": 1, "bat": 3}
+	Run.editions = {"bat": "foil"}
+	Run.grow = {"worm": 23}
+	Run.totems = {"t_one": 3, "t_squash": 1}
 	Run.snacks = ["tongue", "slam"]
 	Run.charms = ["dice"]
 	Run.gold = 12
@@ -35,6 +39,15 @@ func _ready() -> void:
 	router.show_run_shop()
 	await _wait(0.6)
 	await _shot("run_shop")
+	var shop = router.current
+	shop.list.get_parent().scroll_vertical = 900
+	await _wait(0.3)
+	await _shot("run_shop2")
+	Run.offers = ["blob", "yeti|rainbow", "t_many", "sack"]
+	Run.gold = 40
+	shop._buy(3)
+	await _wait(0.4)
+	await _shot("run_sack")
 
 	# A raid on night 4: some blocks down, heroes on their way, one about to be squashed.
 	Run.round_n = 12
@@ -97,15 +110,15 @@ func _ready() -> void:
 class ItemSheet extends Control:
 	func _draw() -> void:
 		draw_rect(Rect2(Vector2.ZERO, size), Color("2a2219"))
-		var ids: Array = Jokers.JOKERS.keys() + Jokers.SNACKS.keys() + Jokers.CHARMS.keys()
+		var ids: Array = Jokers.JOKERS.keys() + Jokers.TOTEMS.keys() + ["sack", "blob|foil", "lucky|gold", "owl|rainbow"] + Jokers.SNACKS.keys() + Jokers.CHARMS.keys()
 		var cols := 5
 		var w := size.x / cols
-		var h := 112.0
+		var h := 96.0
 		var font := UI.display_font()
 		for k in ids.size():
 			var c := Vector2((k % cols + 0.5) * w, 50 + (k / cols) * h)
-			Jokers.draw_icon(self, ids[k], c, 38, 0.5)
-			draw_string(font, c + Vector2(-w / 2, 58), str(Jokers.info(ids[k])["name"]), HORIZONTAL_ALIGNMENT_CENTER, w, 16, Color.WHITE)
+			Jokers.draw_icon(self, ids[k], c, 30, 0.5)
+			draw_string(font, c + Vector2(-w / 2, 46), str(Jokers.info(ids[k])["name"]), HORIZONTAL_ALIGNMENT_CENTER, w, 15, Color.WHITE)
 
 
 class IconArt extends Control:

@@ -92,23 +92,17 @@ func _ready() -> void:
 	get_tree().quit()
 
 
-## Buys what it can afford, in shop order: monsters, snacks, then the charm.
+## Buys what it can afford, in shop order: monsters (new or level-ups), totems, a snack, the sack
+## (taking the first monster it has room for), then the charm.
 func _shop() -> void:
 	RunShop.open_shop()
 	for k in Run.offers.size():
-		var id: String = Run.offers[k]
-		var price := int(Jokers.info(id)["price"])
-		if Run.gold < price:
-			continue
-		if Jokers.is_charm(id):
-			Run.add_charm(id)
-			Run.gold -= price
-		elif Jokers.is_snack(id) and Run.snacks.size() < Run.max_snacks():
-			Run.snacks.append(id)
-			Run.gold -= price
-		elif not Jokers.is_snack(id) and Run.jokers.size() < Run.max_jokers():
-			Run.jokers.append(id)
-			Run.gold -= price
+		Run.buy(Run.offers[k])
+		if not Run.sack.is_empty():
+			for j in Run.sack.size():
+				if Run.pick_from_sack(j):
+					break
+			Run.sack = []
 	Run.offers = []
 	Run.store()
 
