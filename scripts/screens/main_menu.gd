@@ -31,6 +31,13 @@ func _ready() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(spacer)
+	top.add_theme_constant_override("separation", 12)
+	var book := UI.button("Collection", Color("3a3028"), 26, 72)
+	book.pressed.connect(func() -> void: router.show_collection())
+	top.add_child(book)
+	var hats := UI.button("Wardrobe", Color("3a3028"), 26, 72)
+	hats.pressed.connect(func() -> void: router.show_wardrobe())
+	top.add_child(hats)
 
 	var logo := MenuLogo.new()
 	logo.custom_minimum_size = Vector2(0, 300)
@@ -55,10 +62,12 @@ func _ready() -> void:
 	var best := Run.best_round()
 	var new_sub := "Best: %s" % Run.label(best) if best > 0 else "8 nights, 3 rounds each"
 	var new_run := UI.menu_button("New run", new_sub, Color("a0603a"))
-	new_run.pressed.connect(func() -> void:
-		Run.start_new()
-		router.start_game("run"))
+	new_run.pressed.connect(func() -> void: router.show_toad_pick())
 	col.add_child(new_run)
+	var sq_best := Meta.stat("squash_best")
+	var squash := UI.menu_button("Squash mode", "Best: %s" % UI.fmt(sq_best) if sq_best > 0 else "Endless heroes. How many can you flatten?", Color("6a4a90"))
+	squash.pressed.connect(func() -> void: router.start_game("squash"))
+	col.add_child(squash)
 	col.add_child(UI.label("by BDS Labs", 24, Color(1, 1, 1, 0.45)))
 
 
@@ -83,7 +92,7 @@ class MenuLogo extends Control:
 			var p: Vector2 = CELLS[i]
 			BlockArt.draw_block(self, pal[i % pal.size()], c + Vector2(-u * 1.0, -u * 2.4) + p * u * 0.62 + Vector2(0, bob), u * 0.6)
 		FmmArt.draw_nest(self, c + Vector2(0, u * 0.75), u * 2.9, u * 0.95)
-		FmmArt.draw_toad(self, c, u * 1.8 / 110.0, t, "nap")
+		FmmArt.draw_toad(self, c, u * 1.8 / 110.0, t, "nap", Vector2(0, 1), 0.0, FmmArt.TOAD, Meta.hat())
 		var zk := fmod(t * 0.5, 1.0)
 		draw_string(UI.display_font(), c + Vector2(u * (1.3 + zk * 0.5), -u * (1.1 + zk * 1.0)), "z", HORIZONTAL_ALIGNMENT_LEFT, -1,
 			int(u * (0.45 + 0.3 * zk)), Color(FmmArt.C_TEXT, 1.0 - zk))

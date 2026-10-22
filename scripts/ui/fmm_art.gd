@@ -233,8 +233,9 @@ static func _toad_eye(ci: CanvasItem, c: Vector2, r: float, look: Vector2, lid_c
 
 ## The toad around `pos` (his middle), `s` = scale of his ~200x150 body.
 ## mood: "nap" (eyes shut, snoring), "awake" (grumpy, looking at `look`), "angry" (red, mouth open).
-static func draw_toad(ci: CanvasItem, pos: Vector2, s: float, t: float, mood := "nap", look := Vector2(0, 1), wob := 0.0) -> void:
-	var skin := TOAD
+static func draw_toad(ci: CanvasItem, pos: Vector2, s: float, t: float, mood := "nap", look := Vector2(0, 1), wob := 0.0,
+		p_skin := TOAD, hat := "") -> void:
+	var skin := p_skin
 	if mood == "angry":
 		skin = Color("c0584a")
 	var band := skin.lerp(Color("9a8440"), 0.6).darkened(0.1)
@@ -260,6 +261,7 @@ static func draw_toad(ci: CanvasItem, pos: Vector2, s: float, t: float, mood := 
 	for mp in [Vector2(-34, -60), Vector2(50, -54)]:
 		ci.draw_line(mp + Vector2(0, 14), mp, BONE, 6.0)
 		shape(ci, PackedVector2Array([mp + Vector2(-13, 2), mp + Vector2(-8, -9), mp + Vector2(8, -9), mp + Vector2(13, 2)]), Color("b04a3a"), 3.0)
+	_draw_hat(ci, hat, Vector2(0, -66), t)
 	# Eyes on their bumps.
 	for sx in [-1.0, 1.0]:
 		var ec := Vector2(sx * 40, -58)
@@ -281,6 +283,65 @@ static func draw_toad(ci: CanvasItem, pos: Vector2, s: float, t: float, mood := 
 	for sx in [-1.0, 1.0]:
 		shape(ci, moved(PackedVector2Array([Vector2(sx * 44, 52), Vector2(sx * 62, 64), Vector2(sx * 56, 74), Vector2(sx * 34, 70)]), Vector2(0, 3.0 * sin(t * 2.2 + sx)), 1.0, Vector2.ZERO), skin.darkened(0.12), 3.5)
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
+
+
+## The toad's hat (wardrobe), drawn in his own coordinates with the brim at `b`.
+static func _draw_hat(ci: CanvasItem, hat: String, b: Vector2, t: float) -> void:
+	match hat:
+		"nightcap":
+			var tip := b + Vector2(-58, -6 + sin(t * 1.5) * 3)
+			shape(ci, PackedVector2Array([b + Vector2(-32, 4), b + Vector2(-8, -42), b + Vector2(20, -40), b + Vector2(32, 4)]), Color("5a7fc0"), 4.0)
+			shape(ci, PackedVector2Array([b + Vector2(-8, -42), b + Vector2(20, -40), tip + Vector2(10, 4), tip + Vector2(6, -6)]), Color("5a7fc0"), 4.0)
+			ci.draw_circle(tip, 11, INK)
+			ci.draw_circle(tip, 8, BONE)
+			shape(ci, PackedVector2Array([b + Vector2(-36, 0), b + Vector2(36, 0), b + Vector2(36, 12), b + Vector2(-36, 12)]), BONE, 4.0)
+		"flower":
+			for k in 6:
+				var a := TAU * k / 6.0 + t * 0.3
+				var p := b + Vector2(0, -16) + Vector2(cos(a), sin(a)) * 14
+				ci.draw_circle(p, 12, INK)
+				ci.draw_circle(p, 9, Color("e88aa8"))
+			ci.draw_circle(b + Vector2(0, -16), 10, INK)
+			ci.draw_circle(b + Vector2(0, -16), 7, C_GOLD)
+		"tophat":
+			shape(ci, PackedVector2Array([b + Vector2(-24, 2), b + Vector2(-22, -56), b + Vector2(22, -56), b + Vector2(24, 2)]), Color("2a2430"), 4.0)
+			ci.draw_rect(Rect2(b + Vector2(-23, -16), Vector2(46, 9)), Color("b04a3a"))
+			shape(ci, PackedVector2Array([b + Vector2(-40, 0), b + Vector2(40, 0), b + Vector2(40, 10), b + Vector2(-40, 10)]), Color("2a2430"), 4.0)
+		"viking":
+			for sx in [-1.0, 1.0]:
+				shape(ci, PackedVector2Array([b + Vector2(sx * 26, -10), b + Vector2(sx * 58, -40), b + Vector2(sx * 50, -4)]), BONE, 4.0)
+			var dome := PackedVector2Array()
+			for k in 13:
+				var a := PI + PI * k / 12.0
+				dome.append(b + Vector2(cos(a) * 34, sin(a) * 34 + 4))
+			shape(ci, dome, Color("8a8a9a"), 4.0)
+			ci.draw_line(b + Vector2(0, -28), b + Vector2(0, 4), Color("5a5a6a"), 5.0)
+		"wizard":
+			shape(ci, PackedVector2Array([b + Vector2(-30, 2), b + Vector2(6, -76), b + Vector2(30, 2)]), Color("6a4a90"), 4.0)
+			for p in [Vector2(-6, -24), Vector2(8, -44), Vector2(12, -12)]:
+				ci.draw_circle(b + p, 4, C_GOLD)
+			shape(ci, PackedVector2Array([b + Vector2(-44, 0), b + Vector2(44, 0), b + Vector2(44, 10), b + Vector2(-44, 10)]), Color("6a4a90"), 4.0)
+		"crown":
+			shape(ci, PackedVector2Array([b + Vector2(-30, 4), b + Vector2(-34, -30), b + Vector2(-16, -12), b + Vector2(0, -38),
+				b + Vector2(16, -12), b + Vector2(34, -30), b + Vector2(30, 4)]), C_GOLD, 4.0)
+			ci.draw_circle(b + Vector2(0, -8), 6, Color("c0584a"))
+		"party":
+			shape(ci, PackedVector2Array([b + Vector2(-26, 2), b + Vector2(0, -64), b + Vector2(26, 2)]), Color("e070c0"), 4.0)
+			for k in 3:
+				var y := -14.0 - k * 16.0
+				var w := 22.0 - k * 7.0
+				ci.draw_line(b + Vector2(-w, y), b + Vector2(w, y + 6), C_GOLD, 4.0)
+			ci.draw_circle(b + Vector2(0, -66), 9, INK)
+			ci.draw_circle(b + Vector2(0, -66), 6, Color("6aa0c0"))
+		"mushroom":
+			ci.draw_rect(Rect2(b + Vector2(-8, -16), Vector2(16, 18)), BONE)
+			var cap := PackedVector2Array()
+			for k in 13:
+				var a := PI + PI * k / 12.0
+				cap.append(b + Vector2(cos(a) * 42, sin(a) * 34 - 12))
+			shape(ci, cap, Color("c0443a"), 4.0)
+			for p in [Vector2(-18, -26), Vector2(6, -36), Vector2(24, -20)]:
+				ci.draw_circle(b + p, 6, BONE)
 
 
 ## His nest of furs, with a pillow and somebody's shield for a headboard (from FMM's lair).

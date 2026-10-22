@@ -35,17 +35,23 @@ static var grow := {}
 static var totems := {}
 ## Three monsters to pick from after opening a mystery sack (empty when no sack is open).
 static var sack: Array = []
+## "sack" or "boss": where the open pick came from.
+static var sack_kind := "sack"
+## The toad picked for this run (Meta.TOADS), and whether the run went on past the last night.
+static var toad := "bog"
+static var endless := false
 ## Shop offers for the round about to start (kept so leaving the app can't reroll them).
 static var offers: Array = []
 static var rerolls := 0
 
 
-static func start_new() -> void:
+static func start_new(p_toad := "bog") -> void:
+	toad = p_toad
+	endless = false
 	round_n = 1
-	naps = MAX_NAPS
 	total = 0
 	squashed = 0
-	gold = 4
+	gold = 12 if toad == "rich" else 4
 	jokers = []
 	snacks = []
 	charms = []
@@ -54,8 +60,13 @@ static func start_new() -> void:
 	grow = {}
 	totems = {}
 	sack = []
+	sack_kind = "sack"
 	offers = []
 	rerolls = 0
+	if toad == "old":
+		for id in Jokers.TOTEMS:
+			totems[id] = 1
+	naps = max_naps()
 	store()
 
 
@@ -76,6 +87,9 @@ static func resume() -> bool:
 	grow = Dictionary(r.get("grow", {}))
 	totems = Dictionary(r.get("totems", {}))
 	sack = Array(r.get("sack", []))
+	sack_kind = str(r.get("sack_kind", "sack"))
+	toad = str(r.get("toad", "bog"))
+	endless = bool(r.get("endless", false)) or round_n > last_round()
 	offers = Array(r.get("offers", []))
 	rerolls = int(r.get("rerolls", 0))
 	return true
@@ -88,12 +102,15 @@ static func has_saved() -> bool:
 
 static func store() -> void:
 	Save.data["run"] = {"round": round_n, "naps": naps, "total": total, "squashed": squashed,
-		"gold": gold, "jokers": jokers, "snacks": snacks, "charms": charms, "jlevels": jlevels, "editions": editions, "grow": grow, "totems": totems, "sack": sack, "offers": offers, "rerolls": rerolls}
+		"gold": gold, "jokers": jokers, "snacks": snacks, "charms": charms, "jlevels": jlevels, "editions": editions, "grow": grow, "totems": totems, "sack": sack, "sack_kind": sack_kind, "toad": toad, "endless": endless, "offers": offers, "rerolls": rerolls}
 	Save.save()
 
 
-## Ends the run: records the best and forgets the saved run.
+## Ends the run: records the best and lifetime stats, and forgets the saved run.
 static func finish() -> void:
+	Meta.add("runs")
+	if endless:
+		Meta.best("endless_best", night_of(round_n))
 	var best: Dictionary = Save.data.get("run_best", {"round": 0, "total": 0})
 	if round_n > int(best.get("round", 0)) or (round_n == int(best.get("round", 0)) and total > int(best.get("total", 0))):
 		Save.data["run_best"] = {"round": round_n, "total": total}
@@ -127,12 +144,24 @@ static func target(r: int) -> int:
 	var night := night_of(r)
 	var base: int = BASE_TARGET[mini(night, NIGHTS) - 1]
 	if night > NIGHTS:
-		base = int(base * pow(1.35, night - NIGHTS))
+		base = int(base * pow(1.5, night - NIGHTS))
 	return int(roundf(base * float(TARGET_MULT[slot_of(r)]) / 10.0) * 10.0)
 
 
+## Every other night's raid is a boss raid: a champion with lots of armour and a trick of his own.
+static func is_boss(r: int) -> bool:
+	return is_raid(r) and night_of(r) % 2 == 0
+
+
+const BOSSES := ["boss_thief", "boss_wizard", "boss_champion"]
+
+
+static func boss_type(r: int) -> String:
+	return BOSSES[(night_of(r) / 2 - 1) % BOSSES.size()]
+
+
 static func pieces(r: int) -> int:
-	return PIECES[slot_of(r)] + int(v("troll")) + (1 if charms.has("lantern") else 0)
+	return PIECES[slot_of(r)] + int(v("troll")) + (1 if charms.has("lantern") else 0) + (6 if is_boss(r) else 0)
 
 
 static func has(joker: String) -> bool:
@@ -213,6 +242,8 @@ static func _take(offer: String) -> void:
 			var e := Jokers.edition(offer)
 			if e != "":
 				editions[id] = e
+				Meta.add("shinies")
+		Meta.mark_seen(id)
 	elif Jokers.is_totem(id):
 		totems[id] = totem(id) + 1
 	elif Jokers.is_charm(id):
@@ -221,6 +252,9 @@ static func _take(offer: String) -> void:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash("sack-%d-%d-%d-%d" % [round_n, rerolls, gold, total])
 		sack = Jokers.roll_sack(rng, jokers, jlevels)
+		sack_kind = "sack"
+		for o in sack:
+			Meta.mark_seen(o)
 	elif Jokers.is_snack(id):
 		snacks.append(id)
 
@@ -268,12 +302,14 @@ static func add_grow(id: String, n := 1) -> void:
 
 ## Called once when a round is won, before its gold is paid out.
 static func round_won() -> void:
+	Meta.add("rounds_won")
+	Meta.best("best_night", night_of(round_n))
 	add_grow("piggy")
 	add_grow("yeti")
 
 
 static func max_jokers() -> int:
-	return Jokers.MAX_JOKERS + (1 if charms.has("den") else 0)
+	return Jokers.MAX_JOKERS + (1 if charms.has("den") else 0) + (1 if toad == "big" else 0)
 
 
 static func max_snacks() -> int:
@@ -281,7 +317,7 @@ static func max_snacks() -> int:
 
 
 static func max_naps() -> int:
-	return MAX_NAPS + (1 if charms.has("pillow") else 0)
+	return MAX_NAPS + (1 if charms.has("pillow") else 0) + (1 if toad == "sleepy" else 0)
 
 
 ## Buys a charm: it lasts for the rest of the run (the pillow also hands over its nap at once).

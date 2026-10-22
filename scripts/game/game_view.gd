@@ -61,7 +61,13 @@ var tool := ""
 
 # Run mode: a score target within a piece budget; raid rounds send heroes down the board.
 const HERO_TYPES := {"squire": {"hp": 1, "steps": 1}, "elf": {"hp": 1, "steps": 2}, "knight": {"hp": 2, "steps": 1}, "paladin": {"hp": 3, "steps": 1},
-	"bomber": {"hp": 1, "steps": 1}, "healer": {"hp": 1, "steps": 1}, "thief": {"hp": 1, "steps": 1}, "mage": {"hp": 1, "steps": 1}}
+	"bomber": {"hp": 1, "steps": 1}, "healer": {"hp": 1, "steps": 1}, "thief": {"hp": 1, "steps": 1}, "mage": {"hp": 1, "steps": 1},
+	# Bosses: big armour, walk every third piece, and each has a trick (see _hero_tricks).
+	"boss_thief": {"hp": 2, "steps": 1, "name": "The Master Thief", "trick": "Steals a piece every 3 moves"},
+	"boss_wizard": {"hp": 3, "steps": 1, "name": "The Grand Wizard", "trick": "Freezes two blocks every 2 moves"},
+	"boss_champion": {"hp": 4, "steps": 1, "name": "The Champion", "trick": "Patches his armour every 3 moves"}}
+const G_BOSS := ["A champion. In MY room.", "That one's big. Squash him.", "Oh no. Not him again."]
+const G_BOSS_DOWN := ["Ha! Flat champion.", "Who's the hero now?", "Now THAT was satisfying."]
 # Which heroes turn up, by night: [type, first night, weight].
 const HERO_TABLE := [["squire", 1, 60], ["elf", 1, 25], ["knight", 2, 25], ["mage", 2, 12], ["thief", 2, 12],
 	["healer", 3, 12], ["bomber", 3, 12], ["paladin", 4, 14]]
@@ -90,6 +96,11 @@ var clears := 0
 ## Honey Jar snack: the next clear scores x3.
 var honey := false
 var advanced_at := 0
+## Boss raids: the round only ends once the boss is squashed too.
+var boss_round := false
+var boss_beaten := false
+## Squash mode keeps its own naps (a saved run's naps stay untouched).
+var squash_naps := 3
 ## Joker names that fired this move, shown as little pops over the board.
 var joker_pops: Array = []
 
@@ -192,7 +203,26 @@ func setup(p_mode: String, p_level: Dictionary) -> void:
 		if raid:
 			_spawn_hero()
 			_spawn_hero()
-		say(G_RAID if raid else G_START)
+		boss_round = Run.is_boss(round_n)
+		if boss_round:
+			_spawn_boss(Run.boss_type(round_n))
+			say(G_BOSS)
+		else:
+			say(G_RAID if raid else G_START)
+	if mode == "squash":
+		raid = true
+		pieces_left = 999999
+		dealer.base = 0.2
+		dealer.ramp = 0.15
+		spawn_in = 3
+		# A few blocks already down at the bottom, so the first squashes are within reach.
+		for y in [N - 2, N - 1]:
+			var gaps := [randi_range(0, N - 1), randi_range(0, N - 1)]
+			for x in N:
+				if not gaps.has(x):
+					color[y * N + x] = randi_range(1, 8)
+		_spawn_hero()
+		say(G_RAID)
 	_deal()
 	_update_near_lines()
 
@@ -206,7 +236,7 @@ func set_area(r: Rect2) -> void:
 	var w := r.size.x
 	var h := r.size.y
 	# Run mode keeps the toad's nest between the board and the tray.
-	var bed := 1.55 if mode == "run" else 0.0
+	var bed := 1.55 if lair() else 0.0
 	cell = floorf(minf((w - 48.0) / (N + 0.4), (h - 20.0) / (N + 0.4 + 3.5 + bed)))
 	cell = maxf(cell, 20.0)
 	var pad := cell * 0.2
@@ -540,6 +570,8 @@ func _place(slot: int, gx: int, gy: int) -> void:
 			joker_pops.append("Honey Jar x3")
 		pts += _hit_heroes(hit, mult)
 		clears += 1
+		if lair():
+			Meta.add("lines", line_count)
 		var board_clear := _board_empty()
 		if board_clear:
 			pts += 500
@@ -807,8 +839,35 @@ func _board_empty() -> bool:
 	return true
 
 
-func _after_move() -> void:
+## Run and Squash mode both happen in the toad's lair: the bed, the heroes, the naps.
+func lair() -> bool:
+	return mode == "run" or mode == "squash"
+
+
+func naps() -> int:
+	return Run.naps if mode == "run" else squash_naps
+
+
+func max_naps() -> int:
+	return Run.max_naps() if mode == "run" else Run.MAX_NAPS
+
+
+func _add_naps(n: int) -> void:
 	if mode == "run":
+		Run.naps += n
+	else:
+		squash_naps += n
+
+
+## How far into the night it is, for which heroes come and how fast. Squash mode gets later as you play.
+func _night() -> int:
+	if mode == "squash":
+		return mini(12, 1 + placements / 25)
+	return Run.night_of(round_n)
+
+
+func _after_move() -> void:
+	if lair():
 		_after_run_move()
 		return
 	if mode == "adventure":
@@ -832,44 +891,82 @@ func _after_move() -> void:
 	_check_over()
 
 
+## A boss round with the goal reached plays on (bonus time) while the boss is on the board and
+## pieces are left: squashing him drops a rare monster. Otherwise the round ends as a win.
+func _boss_chase() -> bool:
+	if not boss_round or boss_beaten:
+		return false
+	for h in heroes:
+		if h.get("boss", false):
+			return true
+	return false
+
+
+func _win_round() -> void:
+	over = true
+	drag = {}
+	tool = ""
+	pending_finish = {"at": time + 1.2, "won": true}
+	say(G_WIN)
+	# Whoever is still on the board legs it.
+	for h in heroes:
+		flyers.append({"look": _look(h), "p": _cell_center(h["px"], h["py"]), "v": Vector2(randf_range(-200, 200), randf_range(-700, -500)) * cell / 60.0,
+			"r": 0.0, "vr": randf_range(-6, 6), "t0": time, "yelp": "RUN!"})
+	heroes = []
+	Sfx.play("win")
+	Sfx.vibrate(80, true, 1.0)
+
+
 func _after_run_move() -> void:
-	if score >= target:
-		over = true
-		drag = {}
-		tool = ""
-		pending_finish = {"at": time + 1.2, "won": true}
-		say(G_WIN)
-		# Whoever is still on the board legs it.
-		for h in heroes:
-			flyers.append({"look": _look(h), "p": _cell_center(h["px"], h["py"]), "v": Vector2(randf_range(-200, 200), randf_range(-700, -500)) * cell / 60.0,
-				"r": 0.0, "vr": randf_range(-6, 6), "t0": time, "yelp": "RUN!"})
-		heroes = []
-		Sfx.play("win")
-		Sfx.vibrate(80, true, 1.0)
+	if mode == "run" and score >= target and _boss_chase():
+		# Goal reached: the other heroes run for it and only the boss is left to squash.
+		if say_text != "Get the boss!":
+			say(["Get the boss!"])
+		for h in heroes.duplicate():
+			if not h.get("boss", false):
+				heroes.erase(h)
+				flyers.append({"look": _look(h), "p": _cell_center(h["px"], h["py"]), "v": Vector2(randf_range(-200, 200), randf_range(-700, -500)) * cell / 60.0,
+					"r": 0.0, "vr": randf_range(-6, 6), "t0": time, "yelp": "RUN!"})
+	elif mode == "run" and score >= target:
+		_win_round()
 		return
 	if raid and placements != advanced_at:
 		advanced_at = placements
-		if not (_joker("snail") and placements % int(Run.v("snail")) != 0):
+		# Squash mode starts slow: heroes step every other piece for the first 50 pieces.
+		var slow := mode == "squash" and placements < 50 and placements % 2 == 1
+		if not slow and not (_joker("snail") and placements % int(Run.v("snail")) != 0):
 			_advance_heroes()
 			_hero_tricks()
 		spawn_in -= 1
-		if spawn_in <= 0:
-			var night := Run.night_of(round_n)
+		if mode == "squash" and placements % 40 == 0:
+			_spawn_boss(Run.BOSSES[(placements / 40 - 1) % Run.BOSSES.size()])
+			say(G_BOSS)
+		if spawn_in <= 0 and not (boss_round and score >= target):
+			var night := _night()
 			_spawn_hero()
 			if night >= 4 and randf() < 0.25:
 				_spawn_hero()
 			spawn_in = maxi(1, 3 - (night - 1) / 3) + _hero_delay()
+			if mode == "squash":
+				spawn_in = maxi(2, 5 - placements / 40)
 		_update_near_lines()
-		if Run.naps <= 0:
+		if naps() <= 0:
 			end_reason = "woke"
 			_lose()
+			return
+		if mode == "run" and score >= target and not _boss_chase():
+			# The boss walked into the bed (or out of the round): the goal still stands.
+			_win_round()
 			return
 	var empty := true
 	for p in tray:
 		if p != null:
 			empty = false
 	if empty:
-		if pieces_left <= 0:
+		if mode == "run" and pieces_left <= 0 and score >= target:
+			_win_round()
+			return
+		if mode == "run" and pieces_left <= 0:
 			end_reason = "pieces"
 			_lose()
 			return
@@ -882,6 +979,9 @@ func _check_over() -> void:
 	for p in tray:
 		if p != null and BoardLogic.fits_anywhere(occ, p["shape"]):
 			return
+	if mode == "run" and score >= target:
+		_win_round()
+		return
 	end_reason = "space"
 	_lose()
 
@@ -966,7 +1066,7 @@ func say(lines: Array) -> void:
 
 
 func _hero_type() -> String:
-	var night := Run.night_of(round_n)
+	var night := _night()
 	var total := 0
 	for e in HERO_TABLE:
 		if night >= int(e[1]):
@@ -999,6 +1099,22 @@ func _spawn_hero() -> void:
 	next_hero_id += 1
 
 
+func _spawn_boss(t: String) -> void:
+	var occ := occupancy()
+	var x := 3 if occ[3] == 0 else (4 if occ[4] == 0 else -1)
+	if x < 0:
+		for k in N:
+			if occ[k] == 0:
+				x = k
+		if x < 0:
+			return
+	heroes.append({"id": next_hero_id, "type": t, "kind": HeroArt.kind_for(t), "hp": int(HERO_TYPES[t]["hp"]), "x": x, "y": 0,
+		"px": float(x), "py": -1.2, "bob": randf() * 6.0, "moves": 0, "boss": true})
+	next_hero_id += 1
+	_text(str(HERO_TYPES[t]["name"]) + "!", _cell_center(3.5, 1.0), cell * 0.7, true)
+	Sfx.play("bomb", 0.5)
+
+
 ## Each hero walks toward the bed: straight down when free, sideways around blocks, or waits.
 func _advance_heroes() -> void:
 	var order := heroes.duplicate()
@@ -1007,6 +1123,8 @@ func _advance_heroes() -> void:
 		if not heroes.has(h):
 			continue
 		h["moves"] = int(h.get("moves", 0)) + 1
+		if h.get("boss", false) and int(h["moves"]) % 3 != 0:
+			continue
 		for s in int(HERO_TYPES[h["type"]]["steps"]):
 			var x: int = h["x"]
 			var y: int = h["y"]
@@ -1040,8 +1158,8 @@ func _walkable(x: int, y: int) -> bool:
 
 func _reach_bed(h: Dictionary) -> void:
 	heroes.erase(h)
-	var lost := 2 if h["type"] == "bomber" else 1
-	Run.naps -= lost
+	var lost := 2 if h["type"] == "bomber" or h.get("boss", false) else 1
+	_add_naps(-lost)
 	var c := _cell_center(float(h["x"]), float(N - 1)) + Vector2(0, cell)
 	flyers.append({"look": _look(h), "p": c, "v": Vector2(randf_range(-150, 150), -900) * cell / 60.0,
 		"r": 0.0, "vr": randf_range(-20, 20), "t0": time, "yelp": "Boing!"})
@@ -1077,6 +1195,8 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 				"v": Vector2(randf_range(-500, 500), randf_range(-1100, -700)) * cell / 60.0,
 				"r": 0.0, "vr": randf_range(-24, 24), "t0": time, "yelp": YELPS.pick_random()})
 			pts += _squash_bonus(int(60 * mult * k))
+			if h.get("boss", false):
+				pts += _boss_down(c)
 			if h["type"] == "bomber":
 				pts += _bomber_blast(int(h["x"]), int(h["y"]))
 			_text("BONK!", c - Vector2(0, cell * 0.4), cell * 0.85, true, 0.04)
@@ -1105,9 +1225,30 @@ func _next_to_hit(hit: Dictionary, x: int, y: int) -> bool:
 	return false
 
 
+## A boss goes flat: a big payout, and in a run, a rare monster waits in the shop.
+func _boss_down(c: Vector2) -> int:
+	boss_beaten = true
+	Meta.add("bosses")
+	say(G_BOSS_DOWN)
+	_text("BOSS DOWN!", c - Vector2(0, cell), cell * 1.1, true, 0.1, true)
+	rings.append({"pos": c, "t0": time, "color": GOLD, "r": cell * 8.0})
+	Sfx.play_later("win", 0.1)
+	if not reduced:
+		slowmo = 0.3
+		shake = 16.0
+	return 300
+
+
 ## What a squashed (or eaten) hero pays, with everything that cares about squashing.
 func _squash_bonus(base: int) -> int:
+	Meta.add("squashed")
 	var pts := base
+	if mode != "run":
+		# Squash mode: every 6 heroes flattened win back a nap.
+		if mode == "squash" and squashed % 6 == 0 and squash_naps < Run.MAX_NAPS:
+			squash_naps += 1
+			_text("+1 NAP", bed_rect.get_center() - Vector2(0, cell * 0.8), cell * 0.8, true, 0.2)
+		return pts
 	if _joker("bones"):
 		pts = int(pts * Run.v("bones"))
 		_joker_pop("bones", "x" + Jokers.fmt(Run.v("bones")))
@@ -1154,6 +1295,17 @@ func _hero_tricks() -> void:
 		var hy: int = h["y"]
 		var c := _cell_center(float(hx), float(hy))
 		match str(h["type"]):
+			"boss_thief":
+				if int(h["moves"]) % 3 == 0:
+					_steal_piece(c)
+			"boss_wizard":
+				if int(h["moves"]) % 2 == 0:
+					for k in 2:
+						_freeze_near(hx, hy, 3, c)
+			"boss_champion":
+				if int(h["moves"]) % 3 == 0 and int(h["hp"]) < int(HERO_TYPES["boss_champion"]["hp"]):
+					h["hp"] = int(h["hp"]) + 1
+					_text("+1 armour", c - Vector2(0, cell * 0.7), cell * 0.5, false)
 			"healer":
 				for o in heroes:
 					if o == h or absi(int(o["x"]) - hx) > 1 or absi(int(o["y"]) - hy) > 1:
@@ -1164,34 +1316,46 @@ func _hero_tricks() -> void:
 						_text("+1 armour", _cell_center(float(o["x"]), float(o["y"])) - Vector2(0, cell * 0.6), cell * 0.4, false)
 			"mage":
 				if int(h["moves"]) % 3 == 0:
-					var near: Array = []
-					for dy in range(-2, 3):
-						for dx in range(-2, 3):
-							var nx := hx + dx
-							var ny := hy + dy
-							if nx >= 0 and ny >= 0 and nx < N and ny < N:
-								var i := ny * N + nx
-								if color[i] != 0 and color[i] != STONE and ice[i] == 0:
-									near.append(i)
-					if not near.is_empty():
-						var i: int = near.pick_random()
-						ice[i] = 1
-						_burst(_cell_center(float(i % N), float(i / N)), Color(0.85, 0.97, 1.0), 10)
-						_text("Freeze!", c - Vector2(0, cell * 0.6), cell * 0.45, false)
-						Sfx.play("ice")
+					_freeze_near(hx, hy, 2, c)
 			"thief":
 				if int(h["moves"]) % 5 == 0:
-					var full: Array = []
-					for k in 3:
-						if tray[k] != null:
-							full.append(k)
-					if not full.is_empty():
-						var k: int = full.pick_random()
-						tray[k] = null
-						tray_pop[k] = time
-						pieces_left -= 1
-						_text("Yoink!", _slot_center(k) - Vector2(0, cell * 0.8), cell * 0.6, true)
-						Sfx.play("drop", 1.3)
+					_steal_piece(c)
+
+
+## A mage's spell: one block near him (within r cells) freezes over.
+func _freeze_near(hx: int, hy: int, r: int, c: Vector2) -> void:
+	var near: Array = []
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			var nx := hx + dx
+			var ny := hy + dy
+			if nx >= 0 and ny >= 0 and nx < N and ny < N:
+				var i := ny * N + nx
+				if color[i] != 0 and color[i] != STONE and ice[i] == 0:
+					near.append(i)
+	if near.is_empty():
+		return
+	var i: int = near.pick_random()
+	ice[i] = 1
+	_burst(_cell_center(float(i % N), float(i / N)), Color(0.85, 0.97, 1.0), 10)
+	_text("Freeze!", c - Vector2(0, cell * 0.6), cell * 0.45, false)
+	Sfx.play("ice")
+
+
+## A thief pinches a piece from the tray (it counts as used).
+func _steal_piece(c: Vector2) -> void:
+	var full: Array = []
+	for k in 3:
+		if tray[k] != null:
+			full.append(k)
+	if full.is_empty():
+		return
+	var k: int = full.pick_random()
+	tray[k] = null
+	tray_pop[k] = time
+	pieces_left -= 1
+	_text("Yoink!", _slot_center(k) - Vector2(0, cell * 0.8), cell * 0.6, true)
+	Sfx.play("drop", 1.3)
 
 
 # ---------------------------------------------------------------- toad snacks
@@ -1245,9 +1409,9 @@ func use_snack(id: String) -> bool:
 			say(["Sticky.", "Mm. Honey."])
 			_text("Next clear x3", Vector2(area.position.x + area.size.x / 2.0, inner.y + cell * 3.0), cell * 0.7, true)
 		"feather":
-			if Run.naps >= Run.max_naps():
+			if naps() >= max_naps():
 				return false
-			Run.naps += 1
+			_add_naps(1)
 			say(["Ahh. Fluffy.", "Five more minutes."])
 			_text("+1 NAP", bed_rect.get_center() - Vector2(0, cell * 0.8), cell * 0.8, true)
 			Sfx.play("coin")
@@ -1594,13 +1758,14 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if area.size.x <= 0.0:
 		return
-	if mode == "run":
+	if lair():
 		var mood := "nap"
 		if time - angry_t < 1.4 or end_reason == "woke":
 			mood = "angry"
 		elif raid and _hero_near_bed():
 			mood = "awake"
-		HeroArt.draw_bed(self, bed_rect, cell, time, mood, Run.naps, font)
+		var skin := Color(str(Meta.TOADS.get(Run.toad if mode == "run" else "bog", Meta.TOADS["bog"])["color"]))
+		HeroArt.draw_bed(self, bed_rect, cell, time, mood, naps(), font, max_naps(), skin, Meta.hat())
 	draw_style_box(sb_board, board_rect)
 	for y in N:
 		for x in N:
@@ -1610,7 +1775,7 @@ func _draw() -> void:
 		_draw_crumble()
 	else:
 		_draw_blocks()
-	if mode == "run":
+	if lair():
 		_draw_heroes()
 
 	# Ghost of the dragged piece, and pulsing light on the lines it would clear.
@@ -1711,7 +1876,7 @@ func _draw() -> void:
 	for f in texts:
 		_draw_text(f)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	if mode == "run":
+	if lair():
 		HeroArt.draw_bubble(self, bed_rect, cell, say_text, clampf((3.2 - (time - say_t)) / 0.4, 0.0, 1.0), font)
 
 	var hint := ""
@@ -1723,7 +1888,7 @@ func _draw() -> void:
 		hint = "Tap a piece to rotate it"
 	elif placements == 0 and mode == "classic":
 		hint = "Drag a piece onto the board"
-	elif placements < 2 and mode == "run" and raid:
+	elif placements < 2 and lair() and raid:
 		hint = "Fill a line through a hero to squash him"
 	if hint != "":
 		draw_string(font, Vector2(area.position.x, tray_y + tray_h + cell * 0.1), hint, HORIZONTAL_ALIGNMENT_CENTER,
@@ -1779,11 +1944,22 @@ func _draw_heroes() -> void:
 		var bob := sin(time * 5.5 + float(h["bob"])) * cell * 0.03
 		var walking := absf(float(h["py"]) - float(h["y"])) + absf(float(h["px"]) - float(h["x"])) > 0.05
 		var fx := -1.0 if int(h["x"]) >= N / 2 else 1.0
-		FmmArt.draw_hero(self, _look(h), c + Vector2(0, cell * 0.06 + bob), cell / 46.0, time + float(h["bob"]), 1.0 if doomed else 0.0, 0.0, fx, 0.6 if walking else 0.0)
+		var boss: bool = h.get("boss", false)
+		var hs := cell / (34.0 if boss else 46.0)
+		if boss:
+			# A red glow under the boss so he reads as the big one.
+			draw_circle(c + Vector2(0, cell * 0.3), cell * 0.42, Color(0.75, 0.2, 0.15, 0.35))
+		FmmArt.draw_hero(self, _look(h), c + Vector2(0, cell * 0.06 + bob), hs, time + float(h["bob"]), 1.0 if doomed else 0.0, 0.0, fx, 0.6 if walking else 0.0)
+		if boss:
+			var cp := c + Vector2(0, -cell * 0.62 + bob)
+			var crown := PackedVector2Array([cp + Vector2(-0.2, 0.08) * cell, cp + Vector2(-0.22, -0.1) * cell, cp + Vector2(-0.1, -0.02) * cell,
+				cp + Vector2(0, -0.14) * cell, cp + Vector2(0.1, -0.02) * cell, cp + Vector2(0.22, -0.1) * cell, cp + Vector2(0.2, 0.08) * cell])
+			draw_colored_polygon(crown, GOLD)
+			draw_polyline(crown + PackedVector2Array([crown[0]]), HeroArt.OUT, cell * 0.04, true)
 		var hp := int(h["hp"])
 		if hp > 1:
 			for k in hp:
-				var pp := c + Vector2(-cell * 0.1 * (hp - 1) + k * cell * 0.2, -cell * 0.46)
+				var pp := c + Vector2(-cell * 0.1 * (hp - 1) + k * cell * 0.2, -cell * (0.8 if boss else 0.46))
 				draw_circle(pp, cell * 0.075, HeroArt.OUT)
 				draw_circle(pp, cell * 0.055, GOLD)
 

@@ -48,6 +48,18 @@ func show_run_shop() -> void:
 	_swap(RunShop.new())
 
 
+func show_toad_pick() -> void:
+	_swap(ToadPick.new())
+
+
+func show_collection() -> void:
+	_swap(CollectionScreen.new())
+
+
+func show_wardrobe() -> void:
+	_swap(WardrobeScreen.new())
+
+
 func show_settings() -> void:
 	_swap(SettingsScreen.new())
 

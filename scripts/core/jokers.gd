@@ -217,6 +217,8 @@ static func roll_monsters(rng: RandomNumberGenerator, n: int, owned: Array, leve
 	var pool: Array = []
 	var weights: Array = []
 	for id in JOKERS:
+		if not Meta.monster_unlocked(id):
+			continue
 		var w: float = rarity_weight[rarity(id)]
 		if owned.has(id):
 			if int(levels.get(id, 1)) >= MAX_LEVEL:
@@ -239,8 +241,9 @@ static func roll_monsters(rng: RandomNumberGenerator, n: int, owned: Array, leve
 
 ## A visit's offers: three monsters, two totems, a snack, a mystery sack, and a charm the run
 ## doesn't have yet (while any are left).
-static func roll_offers(rng: RandomNumberGenerator, owned: Array, levels: Dictionary, charms: Array) -> Array:
-	var out := roll_monsters(rng, 3, owned, levels, RARITY_WEIGHT, 1.0)
+## The Hungry Toad's shops show a fourth monster; the Shiny Toad's turn up shiny three times as often.
+static func roll_offers(rng: RandomNumberGenerator, owned: Array, levels: Dictionary, charms: Array, toad := "bog") -> Array:
+	var out := roll_monsters(rng, 4 if toad == "hungry" else 3, owned, levels, RARITY_WEIGHT, 3.0 if toad == "shiny" else 1.0)
 	var totems := TOTEMS.keys()
 	for k in 2:
 		var i := rng.randi_range(0, totems.size() - 1)
@@ -261,6 +264,11 @@ static func roll_offers(rng: RandomNumberGenerator, owned: Array, levels: Dictio
 ## The three monsters inside a mystery sack: rares and shinies turn up far more often.
 static func roll_sack(rng: RandomNumberGenerator, owned: Array, levels: Dictionary) -> Array:
 	return roll_monsters(rng, 3, owned, levels, [2.0, 3.0, 3.0], 3.0)
+
+
+## A beaten boss drops a choice of two rare monsters (or level-ups of ones the player has).
+static func roll_boss_drop(rng: RandomNumberGenerator, owned: Array, levels: Dictionary) -> Array:
+	return roll_monsters(rng, 2, owned, levels, [0.0, 0.3, 3.0], 2.0)
 
 
 ## The little picture on a card or button: a monster (with its shine), snack, charm, totem or sack.

@@ -13,11 +13,17 @@ func _ready() -> void:
 	var verbose := false
 	var calibrate := false
 	var no_shop := false
+	var squash := false
+	var toad := "bog"
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--runs="):
 			runs = int(a.split("=")[1])
 		elif a == "--verbose":
 			verbose = true
+		elif a == "--squash":
+			squash = true
+		elif a.begins_with("--toad="):
+			toad = a.split("=")[1]
 		elif a == "--no-shop":
 			no_shop = true
 		elif a == "--calibrate":
@@ -27,11 +33,14 @@ func _ready() -> void:
 	get_tree().root.add_child.call_deferred(router)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	if squash:
+		await _squash_games(runs)
+		return
 	var reached: Array = []
 	var fails := {}
 	var per_round := {}
 	for k in runs:
-		Run.start_new()
+		Run.start_new(toad)
 		while true:
 			var r := Run.round_n
 			router.start_game("run")
@@ -92,10 +101,34 @@ func _ready() -> void:
 	get_tree().quit()
 
 
+## Squash mode: plays N games and prints score, heroes squashed and pieces placed.
+func _squash_games(n: int) -> void:
+	var scores: Array = []
+	for k in n:
+		router.start_game("squash")
+		await get_tree().process_frame
+		var screen: GameScreen = router.current
+		screen._close_dialog()
+		var view := screen.view
+		while not view.over and view.placements < 3000:
+			_bot_move(view)
+		print("squash %d: score %d squashed %d pieces %d %s" % [k, view.score, view.squashed, view.placements, view.end_reason])
+		scores.append(view.score)
+		view.pending_finish = {}
+		screen._on_finished(false)
+	print("squash scores: ", scores)
+	print("RUN BOT DONE")
+	get_tree().quit()
+
+
 ## Buys what it can afford, in shop order: monsters (new or level-ups), totems, a snack, the sack
 ## (taking the first monster it has room for), then the charm.
 func _shop() -> void:
-	RunShop.open_shop()
+	# The round's end already opened the shop (and a boss drop, if any).
+	for j in Run.sack.size():
+		if Run.pick_from_sack(j):
+			break
+	Run.sack = []
 	for k in Run.offers.size():
 		Run.buy(Run.offers[k])
 		if not Run.sack.is_empty():
@@ -129,7 +162,7 @@ func _bot_move(view: GameView) -> void:
 				var hero_hits := 0
 				for h in view.heroes:
 					if f["rows"].has(int(h["y"])) or f["cols"].has(int(h["x"])):
-						hero_hits += 1 + int(h["y"])
+						hero_hits += (1 + int(h["y"])) * (4 if h.get("boss", false) else 1)
 				var after := BoardLogic.sim_place(occ, sticky, p["shape"], x, y)
 				var sc := lines * lines * 2.0 + hero_hits * 1.5 - BoardLogic.fill_ratio(after) * 10.0 + y * 0.01
 				if sc > best_score:

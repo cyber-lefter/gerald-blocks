@@ -58,10 +58,27 @@ static func _rng() -> RandomNumberGenerator:
 
 ## Rolls the offers for the coming round. While offers exist the run is "in the shop", so Continue comes back here.
 static func open_shop() -> void:
-	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.jlevels, Run.charms)
+	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.jlevels, Run.charms, Run.toad)
 	Run.rerolls = 0
 	Run.sack = []
+	_mark_seen()
 	Run.store()
+
+
+## After a boss: the shop opens with a pick of two rare monsters, free.
+static func open_boss_drop() -> void:
+	var rng := _rng()
+	rng.seed += 77
+	Run.sack = Jokers.roll_boss_drop(rng, Run.jokers, Run.jlevels)
+	Run.sack_kind = "boss"
+	for o in Run.sack:
+		Meta.mark_seen(o)
+	Run.store()
+
+
+static func _mark_seen() -> void:
+	for o in Run.offers:
+		Meta.mark_seen(o)
 
 
 func go_back() -> void:
@@ -77,7 +94,7 @@ func _rebuild() -> void:
 
 	if not Run.sack.is_empty():
 		# An open sack: pick one monster (or leave them all) before shopping on.
-		list.add_child(_heading("Mystery Sack: pick one"))
+		list.add_child(_heading("Boss drop: pick one, free" if Run.sack_kind == "boss" else "Mystery Sack: pick one"))
 		for k in Run.sack.size():
 			var offer: String = Run.sack[k]
 			var why := Run.blocked(offer)
@@ -167,7 +184,8 @@ func _reroll() -> void:
 		return
 	Run.gold -= cost
 	Run.rerolls += 1
-	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.jlevels, Run.charms)
+	Run.offers = Jokers.roll_offers(_rng(), Run.jokers, Run.jlevels, Run.charms, Run.toad)
+	_mark_seen()
 	Run.store()
 	Sfx.play("power")
 	_rebuild()

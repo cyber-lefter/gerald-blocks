@@ -84,6 +84,67 @@ func _ready() -> void:
 	await _wait(2.4)
 	await _shot("run_over")
 
+	# Boss raid on night 2.
+	Run.start_new("rich")
+	Run.round_n = 6
+	router.start_game("run")
+	await get_tree().process_frame
+	screen = router.current
+	await _wait(0.4)
+	await _shot("run_boss_intro")
+	screen._close_dialog()
+	view = screen.view
+	for i in [48, 49, 50, 52, 53, 54, 55, 56, 57, 58, 59, 60, 62, 63]:
+		view.color[i] = 1 + i % 8
+	for h in view.heroes:
+		if h.get("boss", false):
+			h["y"] = 3
+			h["py"] = 3.0
+	await _wait(0.8)
+	await _shot("run_boss")
+
+	# Night 8 won: keep going into endless.
+	Run.round_n = Run.last_round()
+	view.score = 999999
+	view.pending_finish = {}
+	screen._on_finished(true)
+	await _wait(0.5)
+	await _shot("run_complete")
+
+	# Squash mode.
+	Meta.data()["stats"]["squash_best"] = 4200
+	router.start_game("squash")
+	await get_tree().process_frame
+	screen = router.current
+	screen._close_dialog()
+	await _wait(0.8)
+	await _shot("squash_mode")
+
+	# Meta screens with some progress.
+	var st: Dictionary = Meta.data()["stats"]
+	st["rounds_won"] = 30
+	st["squashed"] = 120
+	st["best_night"] = 5
+	st["runs"] = 6
+	st["lines"] = 250
+	for id in ["blob", "slime", "goblin", "grub", "rat", "troll", "bat", "mouth", "worm", "crab", "owl", "golem"]:
+		Meta.mark_seen(id)
+	Meta.data()["hat"] = "viking"
+	router.show_menu()
+	await _wait(0.6)
+	await _shot("menu_hat")
+	router.show_toad_pick()
+	await _wait(0.6)
+	await _shot("toad_pick")
+	router.show_wardrobe()
+	await _wait(0.6)
+	await _shot("wardrobe")
+	router.show_collection()
+	await _wait(0.4)
+	router.current._show("worm")
+	await _wait(0.3)
+	await _shot("collection")
+
 	# Every monster, snack and charm on one sheet, to check they all look different.
 	router.queue_free()
 	var sheet := ItemSheet.new()

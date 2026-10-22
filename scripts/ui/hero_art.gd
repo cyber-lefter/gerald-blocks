@@ -7,7 +7,8 @@ const OUT := FmmArt.INK
 const CREAM := FmmArt.C_TEXT
 ## Hero types (rules) to the FMM kinds that play them. Plain one-hit heroes come in two looks; the fast one is a dog.
 const KINDS := {"squire": [FmmArt.ARCHER, FmmArt.BARD], "elf": [FmmArt.DOG], "knight": [FmmArt.TANK],
-	"paladin": [FmmArt.PALADIN], "bomber": [FmmArt.BOMBER], "healer": [FmmArt.HEALER], "thief": [FmmArt.ROGUE], "mage": [FmmArt.MAGE]}
+	"paladin": [FmmArt.PALADIN], "bomber": [FmmArt.BOMBER], "healer": [FmmArt.HEALER], "thief": [FmmArt.ROGUE], "mage": [FmmArt.MAGE],
+	"boss_thief": [FmmArt.ROGUE], "boss_wizard": [FmmArt.MAGE], "boss_champion": [FmmArt.PALADIN]}
 
 
 static func kind_for(type: String) -> int:
@@ -15,7 +16,8 @@ static func kind_for(type: String) -> int:
 
 
 ## Drawn behind the board, so the toad's head tucks under its bottom edge.
-static func draw_bed(ci: CanvasItem, r: Rect2, cell: float, t: float, mood: String, naps: int, font: Font) -> void:
+static func draw_bed(ci: CanvasItem, r: Rect2, cell: float, t: float, mood: String, naps: int, font: Font, max_naps := 3,
+		skin := FmmArt.TOAD, hat := "") -> void:
 	var lw := maxf(2.0, cell * 0.05)
 	var floor_sb := StyleBoxFlat.new()
 	floor_sb.bg_color = Color("2a241c")
@@ -27,13 +29,13 @@ static func draw_bed(ci: CanvasItem, r: Rect2, cell: float, t: float, mood: Stri
 	FmmArt.draw_nest(ci, r.position + Vector2(cell * 2.0, h * 0.62), cell * 1.9, h * 0.36)
 	var s := h * 1.15 / 165.0
 	var wob := 1.0 if mood == "angry" else 0.0
-	FmmArt.draw_toad(ci, r.position + Vector2(cell * 2.0, h * 0.42), s, t, mood, Vector2(0.6, -0.4), wob)
+	FmmArt.draw_toad(ci, r.position + Vector2(cell * 2.0, h * 0.42), s, t, mood, Vector2(0.6, -0.4), wob, skin, hat)
 	if mood == "nap":
 		var zk := fmod(t * 0.6, 1.0)
 		ci.draw_string(font, r.position + Vector2(cell * (3.1 + zk * 0.4), h * (0.3 - zk * 0.5)), "z", HORIZONTAL_ALIGNMENT_LEFT, -1,
 			int(cell * (0.3 + 0.18 * zk)), Color(CREAM, 0.85 * (1.0 - zk)))
 	# Naps left this run: a row of little pillows on the right.
-	for i in Run.max_naps():
+	for i in max_naps:
 		var p := r.end - Vector2(cell * (0.55 + 0.75 * i), h * 0.5)
 		var pts := FmmArt.blobp(p, cell * 0.3, cell * 0.2, 10, 3 + i, 0.08)
 		if i < naps:

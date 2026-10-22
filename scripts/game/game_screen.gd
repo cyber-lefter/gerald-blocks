@@ -61,6 +61,8 @@ func _ready() -> void:
 		_show_daily_intro()
 	elif mode == "run":
 		_show_run_intro()
+	elif mode == "squash":
+		_show_squash_intro()
 
 
 func _process(delta: float) -> void:
@@ -139,6 +141,17 @@ func _build_bar() -> void:
 		var note := UI.label("Daily rules: same pieces for everyone,\nno power-ups, no revives", 24, c_muted)
 		bar.add_child(note)
 		return
+	if mode == "squash":
+		var info := VBoxContainer.new()
+		info.alignment = BoxContainer.ALIGNMENT_CENTER
+		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		bar.add_child(info)
+		info.add_child(UI.label("Squash mode", 24, c_muted))
+		pieces_label = UI.label("", 40, Color.WHITE, 10)
+		info.add_child(pieces_label)
+		_refresh_pieces()
+		return
 	if mode == "run":
 		# Runs swap power-ups for the toad's snacks (one button per slot), with the round,
 		# the pieces left and the monster jokers in the middle.
@@ -209,6 +222,9 @@ func _on_score(score: int, streak: int) -> void:
 func _refresh_pieces() -> void:
 	if pieces_label == null:
 		return
+	if mode == "squash":
+		pieces_label.text = "%d hero%s squashed" % [view.squashed, "" if view.squashed == 1 else "es"]
+		return
 	var n := view.pieces_left
 	pieces_label.text = "%d piece%s left" % [n, "" if n == 1 else "s"]
 	pieces_label.label_settings.font_color = Color("ff6b6b") if n <= 3 else Color.WHITE
@@ -230,6 +246,13 @@ func _refresh_side() -> void:
 			side_title.text = "GOAL"
 			side_value.text = UI.fmt(view.target)
 			side_value.label_settings.font_color = Color("3fdc8a") if view.score >= view.target else c_gold
+			if view.boss_round and not view.boss_beaten and view.score >= view.target:
+				side_title.text = "BONUS"
+				side_value.text = "BOSS!"
+				side_value.label_settings.font_color = Color("ff6b6b")
+		"squash":
+			side_title.text = "BEST"
+			side_value.text = UI.fmt(maxi(Meta.stat("squash_best"), view.score))
 		"adventure":
 			var target := int(level["target"])
 			var cur := mini(view.goal_current, target)
@@ -413,6 +436,13 @@ func _show_pause() -> void:
 	if dialog != null or view.over:
 		return
 	view.set_tool("")
+	if mode == "squash":
+		_dialog("pause", "Paused", [], [
+			["Resume", c_green, _close_dialog],
+			["Restart", c_purple, func() -> void: router.start_game("squash")],
+			["Menu", c_panel, func() -> void: router.show_menu()],
+		])
+		return
 	if mode == "run":
 		_dialog("pause", "Paused", [["Leaving keeps your run. You'll restart this round.", 26, c_muted]], [
 			["Resume", c_green, _close_dialog],
@@ -432,13 +462,13 @@ func go_back() -> void:
 		_close_dialog()
 	elif dialog_kind == "intro":
 		# Backing out before the first move: return to wherever the player came from.
-		if mode == "run":
+		if mode == "run" or mode == "squash":
 			router.show_menu()
 		elif mode == "adventure":
 			router.show_levels(Levels.region_of(level_n))
 		else:
 			router.show_menu()
-	elif dialog_kind == "end" and mode == "run":
+	elif dialog_kind == "end" and (mode == "run" or mode == "squash"):
 		Ads.game_finished(func() -> void: router.show_menu())
 	elif dialog_kind == "end":
 		# Same as the last button on the end screen (Menu or Levels), so coins are still paid out.
@@ -461,6 +491,8 @@ func _on_finished(won: bool) -> void:
 				_end_round_win()
 			else:
 				_end_run_lost()
+		"squash":
+			_end_squash()
 		"classic":
 			_end_classic()
 		"daily":
@@ -590,6 +622,34 @@ func _revive() -> void:
 	)
 
 
+# ---------------------------------------------------------------- squash mode
+
+func _show_squash_intro() -> void:
+	var body: Array = [["No goal, no piece limit. Heroes keep coming, faster and faster, with a boss every 40 pieces.", 28, c_muted]]
+	body.append(["Squash as many as you can before the toad loses his 3 naps.", 28, c_muted])
+	var best := Meta.stat("squash_best")
+	if best > 0:
+		body.append(["Best: %s" % UI.fmt(best), 32, c_gold])
+	_dialog("intro", "Squash mode", body, [["Let's go", c_green, _close_dialog]])
+
+
+func _end_squash() -> void:
+	var s := view.score
+	var is_best := s > Meta.stat("squash_best")
+	Meta.best("squash_best", s)
+	var body: Array = [["Score", 26, c_muted], [UI.fmt(s), 84, Color.WHITE]]
+	body.append(["%d hero%s squashed" % [view.squashed, "" if view.squashed == 1 else "es"], 30, c_gold])
+	if is_best and s > 0:
+		body.append(["New best!", 34, c_gold])
+	else:
+		body.append(["Best " + UI.fmt(Meta.stat("squash_best")), 28, c_muted])
+	_append_unlocks(body)
+	_dialog("end", "The toad woke up" if view.end_reason == "woke" else "Out of space", body, [
+		["Play again", c_purple, func() -> void: Ads.game_finished(func() -> void: router.start_game("squash"))],
+		["Menu", c_panel, func() -> void: Ads.game_finished(func() -> void: router.show_menu())],
+	])
+
+
 # ---------------------------------------------------------------- run mode
 
 func _round_goal_text(r: int) -> String:
@@ -599,9 +659,15 @@ func _round_goal_text(r: int) -> String:
 func _show_run_intro() -> void:
 	var r := Run.round_n
 	var body: Array = [[Run.round_name(r), 34, Color.WHITE], [_round_goal_text(r), 38, c_gold]]
-	if Run.is_raid(r):
+	if Run.is_boss(r):
+		var b: Dictionary = GameView.HERO_TYPES[Run.boss_type(r)]
+		body.append(["Boss raid: %s" % b["name"], 34, Color("ff6b6b")])
+		body.append(["%s. Squash him for a rare monster. Reach the goal and you get bonus time to catch him." % b["trick"], 26, c_muted])
+	elif Run.is_raid(r):
 		body.append(["Heroes are coming! Fill a row or column through a hero to squash him. Every hero that reaches the bed costs the toad a nap.", 26, c_muted])
 	body.append(["Naps left: %d of %d" % [Run.naps, Run.max_naps()], 26, c_muted])
+	if r == 1 and Run.toad != "bog":
+		body.push_front(["Playing as the %s" % Meta.TOADS[Run.toad]["name"], 24, c_muted])
 	_dialog("intro", "Night %d · Round %d" % [Run.night_of(r), Run.slot_of(r) + 1], body, [["Let's go", c_green, _close_dialog]])
 
 
@@ -616,19 +682,25 @@ func _end_round_win() -> void:
 	if Run.is_raid(r) and Run.naps < Run.max_naps():
 		Run.naps += 1
 		body.append(["Raid survived: +1 nap", 28, c_gold])
+	if view.boss_beaten:
+		body.append(["Boss squashed! A rare monster waits in the shop.", 28, c_gold])
+	Run.round_won()
 	Run.round_n = r + 1
-	if r >= Run.last_round():
+	if r == Run.last_round() and not Run.endless:
 		_dialog_run_complete()
 		return
-	Run.round_won()
 	var earned := 0
 	var parts: Array = []
 	for part in Run.round_reward(view.pieces_left):
 		earned += int(part[1])
 		parts.append("%s +%d" % [part[0], int(part[1])])
 	Run.gold += earned
+	Meta.add("gold", earned)
 	body.append(["+%d gold  (%s)" % [earned, ", ".join(PackedStringArray(parts))], 26, c_gold])
 	RunShop.open_shop()
+	if view.boss_beaten:
+		RunShop.open_boss_drop()
+	_append_unlocks(body)
 	var nr := Run.round_n
 	body.append(["Next: %s, %s" % [Run.round_name(nr), _round_goal_text(nr).to_lower()], 26, c_muted])
 	_dialog("end", "Round cleared!", body, [
@@ -641,18 +713,37 @@ func _end_round_win() -> void:
 	confetti.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 
+## Night 8 done: the run is won. Keep going turns it into an endless run (nights 9, 10, ...).
 func _dialog_run_complete() -> void:
-	Run.round_n = Run.last_round()
-	Run.finish()
+	Meta.add("wins")
 	var body: Array = [["The toad slept through all %d nights." % Run.NIGHTS, 30, Color.WHITE]]
 	body.append(["Total score %s" % UI.fmt(Run.total), 34, c_gold])
 	body.append(["Heroes squashed: %d" % Run.squashed, 28, c_muted])
+	body.append(["Keep going to see how far the toad can sleep. The nights only get longer.", 26, c_muted])
+	_append_unlocks(body)
+	Run.store()
 	_dialog("end", "Full night's sleep!", body, [
-		["New run", c_green, func() -> void: Ads.game_finished(func() -> void:
-			Run.start_new()
-			router.start_game("run"))],
-		["Menu", c_panel, func() -> void: Ads.game_finished(func() -> void: router.show_menu())],
+		["Keep going", c_green, func() -> void:
+			Run.endless = true
+			var earned := 0
+			for part in Run.round_reward(view.pieces_left):
+				earned += int(part[1])
+			Run.gold += earned
+			Meta.add("gold", earned)
+			RunShop.open_shop()
+			router.show_run_shop()],
+		["End run", c_panel, func() -> void:
+			Run.round_n = Run.last_round()
+			Run.finish()
+			Ads.game_finished(func() -> void: router.show_menu())],
 	])
+
+
+## "New monster: Glutton Worm" lines for anything unlocked since the player was last told.
+func _append_unlocks(body: Array) -> void:
+	for n in Meta.take_new():
+		body.append([n + "!", 28, Color("8fd06a")])
+	Save.save()
 
 
 func _end_run_lost() -> void:
@@ -677,10 +768,9 @@ func _end_run_lost() -> void:
 	body.append(["Run score %s · %d hero%s squashed" % [UI.fmt(Run.total), Run.squashed, "" if Run.squashed == 1 else "es"], 26, c_muted])
 	if r > prev_best:
 		body.append(["New best run!", 34, c_gold])
+	_append_unlocks(body)
 	_dialog("end", title, body, [
-		["New run", c_green, func() -> void: Ads.game_finished(func() -> void:
-			Run.start_new()
-			router.start_game("run"))],
+		["New run", c_green, func() -> void: Ads.game_finished(func() -> void: router.show_toad_pick())],
 		["Menu", c_panel, func() -> void: Ads.game_finished(func() -> void: router.show_menu())],
 	])
 
