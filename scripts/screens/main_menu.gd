@@ -44,10 +44,13 @@ func _ready() -> void:
 
 	if Run.has_saved():
 		Run.resume()
-		var cont := UI.menu_button("Continue run", "%s · %d nap%s left" % [Run.label(Run.round_n), Run.naps, "" if Run.naps == 1 else "s"], Color("6a8a3a"))
+		var cont := UI.menu_button("Continue run", "%s · %d nap%s · %d gold" % [Run.label(Run.round_n), Run.naps, "" if Run.naps == 1 else "s", Run.gold], Color("6a8a3a"))
 		cont.pressed.connect(func() -> void:
 			Run.resume()
-			router.start_game("run"))
+			if Run.offers.is_empty():
+				router.start_game("run")
+			else:
+				router.show_run_shop())
 		col.add_child(cont)
 	var best := Run.best_round()
 	var new_sub := "Best: %s" % Run.label(best) if best > 0 else "8 nights, 3 rounds each"

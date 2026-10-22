@@ -60,7 +60,11 @@ var undo_state: Dictionary = {}
 var tool := ""
 
 # Run mode: a score target within a piece budget; raid rounds send heroes down the board.
-const HERO_TYPES := {"squire": {"hp": 1, "steps": 1}, "elf": {"hp": 1, "steps": 2}, "knight": {"hp": 2, "steps": 1}, "paladin": {"hp": 3, "steps": 1}}
+const HERO_TYPES := {"squire": {"hp": 1, "steps": 1}, "elf": {"hp": 1, "steps": 2}, "knight": {"hp": 2, "steps": 1}, "paladin": {"hp": 3, "steps": 1},
+	"bomber": {"hp": 1, "steps": 1}, "healer": {"hp": 1, "steps": 1}, "thief": {"hp": 1, "steps": 1}, "mage": {"hp": 1, "steps": 1}}
+# Which heroes turn up, by night: [type, first night, weight].
+const HERO_TABLE := [["squire", 1, 60], ["elf", 1, 25], ["knight", 2, 25], ["mage", 2, 12], ["thief", 2, 12],
+	["healer", 3, 12], ["bomber", 3, 12], ["paladin", 4, 14]]
 const YELPS := ["MY HAT!", "Not the face!", "Tell my mum!", "I had a prophecy!", "AAAAA", "Worth it!", "Oof.", "Unfair!", "My sword!"]
 const PEEL := ["My armour!", "That was rented!", "Just a flesh wound."]
 const G_START := ["Mm. Five more minutes.", "Don't wake me. Score points.", "Quiet blocks only, please.", "I'm resting my eyes."]
@@ -82,6 +86,10 @@ var angry_t := -9.0
 var say_text := ""
 var say_t := -9.0
 var bed_rect := Rect2()
+var clears := 0
+var advanced_at := 0
+## Joker names that fired this move, shown as little pops over the board.
+var joker_pops: Array = []
 
 # Layout
 var area := Rect2()
@@ -362,6 +370,16 @@ func _input(event: InputEvent) -> void:
 
 
 func _press(p: Vector2) -> void:
+	if tool == "tongue":
+		var c := _cell_at(p)
+		if c.x >= 0 and not hero_at(c.x, c.y).is_empty():
+			_eat_hero(c)
+		return
+	if tool == "pebble":
+		var c := _cell_at(p)
+		if c.x >= 0 and color[c.y * N + c.x] != 0:
+			_hammer(c)
+		return
 	if tool == "hammer":
 		var c := _cell_at(p)
 		if c.x >= 0:
@@ -504,10 +522,13 @@ func _place(slot: int, gx: int, gy: int) -> void:
 				orb_from.append(_cell_center(int(key) % N, int(key) / N))
 		var res := _destroy(hit, origin)
 
-		var mult := 1.0 + 0.5 * (streak - 1)
-		var pts := int(line_count * line_count * 20 * mult) * (1 + mono)
+		var mult := 1.0 + (1.0 if _joker("bat") else 0.5) * (streak - 1)
+		var mono_x := 2 if _joker("toadstool") else 1
+		var pts := int(line_count * line_count * 20 * mult) * (1 + mono * mono_x)
 		pts += blasted * 5 + int(res["gems"]) * 50
+		pts = _joker_points(pts, line_count, rows)
 		pts += _hit_heroes(hit, mult)
+		clears += 1
 		var board_clear := _board_empty()
 		if board_clear:
 			pts += 500
@@ -566,6 +587,9 @@ func _place(slot: int, gx: int, gy: int) -> void:
 			Sfx.play("bomb")
 		Sfx.vibrate(60 if big else 30, true, 1.0 if big else 0.7)
 	else:
+		if _joker("slime"):
+			score += 6
+			_joker_pop("slime", "+6")
 		missed += 1
 		if missed >= 3:
 			streak = 0
@@ -573,8 +597,45 @@ func _place(slot: int, gx: int, gy: int) -> void:
 				in_fever = false
 				_text("Fever over", Vector2(area.position.x + area.size.x / 2.0, inner.y + cell * 3.0), cell * 0.6, false)
 	_update_near_lines()
+	_show_joker_pops()
 	score_changed.emit(score, streak)
 	_after_move()
+
+
+func _joker(id: String) -> bool:
+	return mode == "run" and Run.has(id)
+
+
+## Monster jokers that change what a clear is worth. Each one that fires gets a pop.
+func _joker_points(pts: int, line_count: int, rows: Array) -> int:
+	if mode != "run":
+		return pts
+	if _joker("blob"):
+		pts += 15 * line_count
+		_joker_pop("blob", "+%d" % (15 * line_count))
+	if _joker("grub"):
+		for y in rows:
+			if int(y) >= N - 2:
+				pts *= 2
+				_joker_pop("grub", "x2")
+				break
+	if _joker("mouth") and line_count >= 3:
+		pts *= 2
+		_joker_pop("mouth", "x2")
+	if _joker("lucky") and clears == 0:
+		pts *= 3
+		_joker_pop("lucky", "x3")
+	return pts
+
+
+func _joker_pop(id: String, what: String) -> void:
+	joker_pops.append("%s %s" % [Jokers.info(id)["name"], what])
+
+
+func _show_joker_pops() -> void:
+	for k in joker_pops.size():
+		_text(joker_pops[k], Vector2(area.position.x + area.size.x / 2.0, inner.y + cell * (0.6 + 0.7 * k)), cell * 0.5, true, 0.25 + 0.12 * k)
+	joker_pops = []
 
 
 func _line_mono(is_row: bool, k: int) -> bool:
@@ -726,8 +787,11 @@ func _after_run_move() -> void:
 		Sfx.play("win")
 		Sfx.vibrate(80, true, 1.0)
 		return
-	if raid:
-		_advance_heroes()
+	if raid and placements != advanced_at:
+		advanced_at = placements
+		if not (_joker("snail") and placements % 2 == 1):
+			_advance_heroes()
+			_hero_tricks()
 		spawn_in -= 1
 		if spawn_in <= 0:
 			var night := Run.night_of(round_n)
@@ -843,13 +907,16 @@ func say(lines: Array) -> void:
 
 func _hero_type() -> String:
 	var night := Run.night_of(round_n)
-	var r := randf()
-	if night >= 4 and r < 0.12:
-		return "paladin"
-	if night >= 2 and r < 0.35:
-		return "knight"
-	if r < (0.5 if night >= 2 else 0.3):
-		return "elf"
+	var total := 0
+	for e in HERO_TABLE:
+		if night >= int(e[1]):
+			total += int(e[2])
+	var r := randi_range(0, total - 1)
+	for e in HERO_TABLE:
+		if night >= int(e[1]):
+			r -= int(e[2])
+			if r < 0:
+				return e[0]
 	return "squire"
 
 
@@ -868,7 +935,7 @@ func _spawn_hero() -> void:
 	var x: int = free.pick_random()
 	var t := _hero_type()
 	heroes.append({"id": next_hero_id, "type": t, "kind": HeroArt.kind_for(t), "hp": int(HERO_TYPES[t]["hp"]), "x": x, "y": 0,
-		"px": float(x), "py": -1.2, "bob": randf() * 6.0})
+		"px": float(x), "py": -1.2, "bob": randf() * 6.0, "moves": 0})
 	next_hero_id += 1
 
 
@@ -879,6 +946,7 @@ func _advance_heroes() -> void:
 	for h in order:
 		if not heroes.has(h):
 			continue
+		h["moves"] = int(h.get("moves", 0)) + 1
 		for s in int(HERO_TYPES[h["type"]]["steps"]):
 			var x: int = h["x"]
 			var y: int = h["y"]
@@ -912,7 +980,8 @@ func _walkable(x: int, y: int) -> bool:
 
 func _reach_bed(h: Dictionary) -> void:
 	heroes.erase(h)
-	Run.naps -= 1
+	var lost := 2 if h["type"] == "bomber" else 1
+	Run.naps -= lost
 	var c := _cell_center(float(h["x"]), float(N - 1)) + Vector2(0, cell)
 	flyers.append({"look": _look(h), "p": c, "v": Vector2(randf_range(-150, 150), -900) * cell / 60.0,
 		"r": 0.0, "vr": randf_range(-20, 20), "t0": time, "yelp": "Boing!"})
@@ -920,7 +989,7 @@ func _reach_bed(h: Dictionary) -> void:
 	if not reduced:
 		shake = maxf(shake, 10.0)
 	say(G_WAKE)
-	_text("-1 NAP", bed_rect.get_center() - Vector2(0, cell * 0.8), cell * 0.8, false)
+	_text("-%d NAP%s" % [lost, "S" if lost > 1 else ""], bed_rect.get_center() - Vector2(0, cell * 0.8), cell * 0.8, false)
 	Sfx.play("over", 1.2)
 	Sfx.vibrate(120, true, 1.0)
 
@@ -933,7 +1002,7 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 		var i := int(h["y"]) * N + int(h["x"])
 		if not hit.has(i):
 			continue
-		h["hp"] = int(h["hp"]) - 1
+		h["hp"] = int(h["hp"]) - (2 if _joker("golem") else 1)
 		k += 1
 		var c := _cell_center(float(h["x"]), float(h["y"]))
 		if int(h["hp"]) <= 0:
@@ -942,7 +1011,13 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 			flyers.append({"look": _look(h), "p": c,
 				"v": Vector2(randf_range(-500, 500), randf_range(-1100, -700)) * cell / 60.0,
 				"r": 0.0, "vr": randf_range(-24, 24), "t0": time, "yelp": YELPS.pick_random()})
-			pts += int(60 * mult * k)
+			var bonk := int(60 * mult * k)
+			if _joker("bones"):
+				bonk *= 2
+				_joker_pop("bones", "x2")
+			pts += bonk
+			if h["type"] == "bomber":
+				pts += _bomber_blast(int(h["x"]), int(h["y"]))
 			_text("BONK!", c - Vector2(0, cell * 0.4), cell * 0.85, true, 0.04)
 			_spark(c, Color(1.0, 0.84, 0.3), 10, 1.4)
 		else:
@@ -957,6 +1032,142 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 			shake = maxf(shake, 6.0 + k * 3.0)
 		Sfx.vibrate(50, true, 0.9)
 	return pts
+
+
+## A squashed bomber goes off: the blocks around him are blown away (5 points each).
+func _bomber_blast(x: int, y: int) -> int:
+	var n := 0
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var nx := x + dx
+			var ny := y + dy
+			if nx < 0 or ny < 0 or nx >= N or ny >= N:
+				continue
+			var i := ny * N + nx
+			if color[i] == 0 or color[i] == STONE:
+				continue
+			dying.append({"x": nx, "y": ny, "color": _color_of(i), "t0": time + 0.05, "spawned": false, "gem": false})
+			color[i] = 0
+			kind[i] = KIND_NORMAL
+			ice[i] = 0
+			n += 1
+	var c := _cell_center(float(x), float(y))
+	_burst(c, Color(1.0, 0.7, 0.2), 22)
+	rings.append({"pos": c, "t0": time, "color": Color(1.0, 0.6, 0.2), "r": cell * 2.6})
+	Sfx.play_later("bomb", 0.05, 0.8)
+	_text("KABOOM!", c + Vector2(0, cell * 0.5), cell * 0.7, true, 0.1)
+	return n * 5
+
+
+## After the heroes step: healers patch up neighbours, mages freeze a block, thieves pinch a piece.
+func _hero_tricks() -> void:
+	for h in heroes.duplicate():
+		var hx: int = h["x"]
+		var hy: int = h["y"]
+		var c := _cell_center(float(hx), float(hy))
+		match str(h["type"]):
+			"healer":
+				for o in heroes:
+					if o == h or absi(int(o["x"]) - hx) > 1 or absi(int(o["y"]) - hy) > 1:
+						continue
+					var max_hp := int(HERO_TYPES[o["type"]]["hp"])
+					if int(o["hp"]) < max_hp:
+						o["hp"] = int(o["hp"]) + 1
+						_text("+1 armour", _cell_center(float(o["x"]), float(o["y"])) - Vector2(0, cell * 0.6), cell * 0.4, false)
+			"mage":
+				if int(h["moves"]) % 3 == 0:
+					var near: Array = []
+					for dy in range(-2, 3):
+						for dx in range(-2, 3):
+							var nx := hx + dx
+							var ny := hy + dy
+							if nx >= 0 and ny >= 0 and nx < N and ny < N:
+								var i := ny * N + nx
+								if color[i] != 0 and color[i] != STONE and ice[i] == 0:
+									near.append(i)
+					if not near.is_empty():
+						var i: int = near.pick_random()
+						ice[i] = 1
+						_burst(_cell_center(float(i % N), float(i / N)), Color(0.85, 0.97, 1.0), 10)
+						_text("Freeze!", c - Vector2(0, cell * 0.6), cell * 0.45, false)
+						Sfx.play("ice")
+			"thief":
+				if int(h["moves"]) % 4 == 0:
+					var full: Array = []
+					for k in 3:
+						if tray[k] != null:
+							full.append(k)
+					if not full.is_empty():
+						var k: int = full.pick_random()
+						tray[k] = null
+						tray_pop[k] = time
+						pieces_left -= 1
+						_text("Yoink!", _slot_center(k) - Vector2(0, cell * 0.8), cell * 0.6, true)
+						Sfx.play("drop", 1.3)
+
+
+# ---------------------------------------------------------------- toad snacks
+
+## Tongue and Pebble wait for a tap (tool); Slam and Fly Pie work at once. Returns false if it can't be used now.
+func use_snack(id: String) -> bool:
+	if over:
+		return false
+	match id:
+		"tongue":
+			if heroes.is_empty():
+				return false
+			tool = "tongue"
+		"pebble":
+			tool = "pebble"
+		"slam":
+			if heroes.is_empty():
+				return false
+			for h in heroes:
+				for k in 2:
+					var y := int(h["y"]) - 1
+					if y < 0 or not _walkable(int(h["x"]), y):
+						break
+					h["y"] = y
+			angry_t = time
+			say(["HUP!", "Back you go.", "Everybody up."])
+			if not reduced:
+				shake = 14.0
+			Sfx.play("bomb", 0.6)
+			Sfx.vibrate(80, true, 1.0)
+			_update_near_lines()
+		"pie":
+			pieces_left += 3
+			say(["Mm. Fly pie.", "Crunchy."])
+			Sfx.play("coin")
+			_text("+3 pieces", Vector2(area.position.x + area.size.x / 2.0, inner.y + cell * 3.0), cell * 0.8, true)
+			if tray[0] == null and tray[1] == null and tray[2] == null:
+				_deal()
+		_:
+			return false
+	return true
+
+
+func _eat_hero(c: Vector2i) -> void:
+	var h := hero_at(c.x, c.y)
+	if h.is_empty():
+		return
+	heroes.erase(h)
+	squashed += 1
+	var p := _cell_center(float(c.x), float(c.y))
+	var pts := 60 * (2 if _joker("bones") else 1)
+	score += pts
+	_text("GULP! +%d" % pts, p - Vector2(0, cell * 0.4), cell * 0.7, true)
+	# The hero is yanked down into the nest.
+	flyers.append({"look": _look(h), "p": p, "v": (bed_rect.position + Vector2(cell * 2.0, cell * 0.5) - p) * 2.2,
+		"r": 0.0, "vr": 18.0, "t0": time, "yelp": "NOOO"})
+	say(["Mm. Crunchy.", "Tastes of tin.", "*chewing*"])
+	Sfx.play("pick", 0.5)
+	Sfx.vibrate(60, true, 0.9)
+	tool = ""
+	tool_used.emit("tongue")
+	_update_near_lines()
+	score_changed.emit(score, streak)
+	_after_move()
 
 
 # ---------------------------------------------------------------- power-ups
@@ -1364,8 +1575,10 @@ func _draw() -> void:
 		HeroArt.draw_bubble(self, bed_rect, cell, say_text, clampf((3.2 - (time - say_t)) / 0.4, 0.0, 1.0), font)
 
 	var hint := ""
-	if tool == "hammer":
+	if tool == "hammer" or tool == "pebble":
 		hint = "Tap a block to smash it"
+	elif tool == "tongue":
+		hint = "Tap a hero for the toad to eat"
 	elif tool == "rotate":
 		hint = "Tap a piece to rotate it"
 	elif placements == 0 and mode == "classic":

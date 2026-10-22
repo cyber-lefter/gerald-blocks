@@ -44,6 +44,10 @@ func show_shop() -> void:
 	_swap(ShopScreen.new())
 
 
+func show_run_shop() -> void:
+	_swap(RunShop.new())
+
+
 func show_settings() -> void:
 	_swap(SettingsScreen.new())
 

@@ -5,9 +5,9 @@ extends RefCounted
 
 const OUT := FmmArt.INK
 const CREAM := FmmArt.C_TEXT
-## Hero types (rules) to the FMM kinds that can play them. Plain one-hit heroes come in several looks.
-const KINDS := {"squire": [FmmArt.ARCHER, FmmArt.HEALER, FmmArt.MAGE, FmmArt.BARD], "elf": [FmmArt.ROGUE],
-	"knight": [FmmArt.TANK], "paladin": [FmmArt.PALADIN]}
+## Hero types (rules) to the FMM kinds that play them. Plain one-hit heroes come in two looks; the fast one is a dog.
+const KINDS := {"squire": [FmmArt.ARCHER, FmmArt.BARD], "elf": [FmmArt.DOG], "knight": [FmmArt.TANK],
+	"paladin": [FmmArt.PALADIN], "bomber": [FmmArt.BOMBER], "healer": [FmmArt.HEALER], "thief": [FmmArt.ROGUE], "mage": [FmmArt.MAGE]}
 
 
 static func kind_for(type: String) -> int:

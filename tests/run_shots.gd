@@ -26,6 +26,15 @@ func _ready() -> void:
 	await _wait(0.3)
 	await _shot("run_round1")
 
+	Run.jokers = ["blob", "grub", "bat"]
+	Run.snacks = ["tongue", "slam"]
+	Run.gold = 12
+	Run.round_n = 11
+	Run.offers = []
+	router.show_run_shop()
+	await _wait(0.6)
+	await _shot("run_shop")
+
 	# A raid on night 4: some blocks down, heroes on their way, one about to be squashed.
 	Run.round_n = 12
 	Run.naps = 2
@@ -37,10 +46,10 @@ func _ready() -> void:
 	view.heroes = []
 	for i in [40, 41, 42, 44, 45, 46, 47, 50, 51, 58, 59, 60, 9, 17]:
 		view.color[i] = 1 + i % 8
-	for spec in [["knight", 3, 5], ["squire", 6, 2], ["elf", 1, 3], ["paladin", 5, 1]]:
+	for spec in [["knight", 3, 5], ["bomber", 6, 2], ["elf", 1, 3], ["paladin", 5, 1], ["mage", 0, 6], ["thief", 7, 4]]:
 		var t: String = spec[0]
 		view.heroes.append({"id": 0, "type": t, "kind": HeroArt.kind_for(t), "hp": int(GameView.HERO_TYPES[t]["hp"]),
-			"x": spec[1], "y": spec[2], "px": float(spec[1]), "py": float(spec[2]), "bob": randf() * 6.0})
+			"x": spec[1], "y": spec[2], "px": float(spec[1]), "py": float(spec[2]), "bob": randf() * 6.0, "moves": 0})
 	view._update_near_lines()
 	view.say(["Heroes. In my room. At this hour."])
 	await _wait(0.8)

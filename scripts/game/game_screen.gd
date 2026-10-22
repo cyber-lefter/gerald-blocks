@@ -25,6 +25,9 @@ var shown_score := 0.0
 var awarded := false
 var pieces_label: Label
 var round_label: Label
+var snack_buttons: Array = []
+## The snack whose tap-target tool is active (eaten when the tool is used).
+var active_snack := -1
 
 var c_green := Color("6a8a3a")
 var c_purple := Color("a0603a")
@@ -137,16 +140,32 @@ func _build_bar() -> void:
 		bar.add_child(note)
 		return
 	if mode == "run":
-		# Runs have no power-ups (monster jokers come later): the bar shows the round and the piece budget.
+		# Runs swap power-ups for the toad's snacks (one button per slot), with the round,
+		# the pieces left and the monster jokers in the middle.
+		bar.add_theme_constant_override("separation", 10)
+		for k in Jokers.MAX_SNACKS:
+			var sb := SnackButton.new()
+			sb.slot = k
+			var slot := k
+			sb.pressed.connect(func() -> void: _on_snack(slot))
+			snack_buttons.append(sb)
+		bar.add_child(snack_buttons[0])
 		var info := VBoxContainer.new()
 		info.alignment = BoxContainer.ALIGNMENT_CENTER
 		info.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.add_theme_constant_override("separation", 0)
 		bar.add_child(info)
-		round_label = UI.label("%s · %s" % [Run.label(Run.round_n), Run.round_name(Run.round_n)], 28, c_muted)
+		var strip := JokerStrip.new()
+		strip.custom_minimum_size = Vector2(0, 46)
+		info.add_child(strip)
+		round_label = UI.label("%s · %s" % [Run.label(Run.round_n), Run.round_name(Run.round_n)], 24, c_muted)
 		info.add_child(round_label)
-		pieces_label = UI.label("", 44, Color.WHITE, 10)
+		pieces_label = UI.label("", 40, Color.WHITE, 10)
 		info.add_child(pieces_label)
+		bar.add_child(snack_buttons[1])
 		_refresh_pieces()
+		_refresh_snacks()
 		return
 	for p in POWERS:
 		var b := Widgets.PowerButton.new(p[0], p[1])
@@ -179,6 +198,7 @@ func _on_score(score: int, streak: int) -> void:
 	_refresh_side()
 	_refresh_powers()
 	_refresh_pieces()
+	_refresh_snacks()
 
 
 func _refresh_pieces() -> void:
@@ -263,8 +283,45 @@ func _activate(kind: String) -> void:
 
 
 func _on_tool_used(kind: String) -> void:
+	if mode == "run":
+		if active_snack >= 0 and active_snack < Run.snacks.size():
+			Run.snacks.remove_at(active_snack)
+		active_snack = -1
+		_refresh_snacks()
+		return
 	Save.add_power(kind, -1)
 	_refresh_powers()
+
+
+func _on_snack(slot: int) -> void:
+	if view.over or dialog != null or slot >= Run.snacks.size():
+		return
+	if view.tool != "":
+		# Tapping again puts the snack back.
+		view.set_tool("")
+		active_snack = -1
+		_refresh_snacks()
+		return
+	var id: String = Run.snacks[slot]
+	if not view.use_snack(id):
+		Sfx.play("drop")
+		return
+	Sfx.play("power")
+	if view.tool == "":
+		Run.snacks.remove_at(slot)
+	else:
+		active_snack = slot
+	_refresh_snacks()
+	_refresh_pieces()
+	_refresh_side()
+
+
+func _refresh_snacks() -> void:
+	for k in snack_buttons.size():
+		var b: SnackButton = snack_buttons[k]
+		b.id = Run.snacks[k] if k < Run.snacks.size() else ""
+		b.active = active_snack == k and view.tool != ""
+		b.queue_redraw()
 
 
 # ---------------------------------------------------------------- dialogs
@@ -558,11 +615,18 @@ func _end_round_win() -> void:
 	if r >= Run.last_round():
 		_dialog_run_complete()
 		return
-	Run.store()
+	var earned := 0
+	var parts: Array = []
+	for part in Run.round_reward(view.pieces_left):
+		earned += int(part[1])
+		parts.append("%s +%d" % [part[0], int(part[1])])
+	Run.gold += earned
+	body.append(["+%d gold  (%s)" % [earned, ", ".join(PackedStringArray(parts))], 26, c_gold])
+	RunShop.open_shop()
 	var nr := Run.round_n
 	body.append(["Next: %s, %s" % [Run.round_name(nr), _round_goal_text(nr).to_lower()], 26, c_muted])
 	_dialog("end", "Round cleared!", body, [
-		["Next round", c_green, func() -> void: router.start_game("run")],
+		["Shop (%d gold)" % Run.gold, c_green, func() -> void: router.show_run_shop()],
 		["Menu", c_panel, func() -> void: router.show_menu()],
 	])
 	var confetti := Widgets.Confetti.new()
@@ -613,3 +677,55 @@ func _end_run_lost() -> void:
 			router.start_game("run"))],
 		["Menu", c_panel, func() -> void: Ads.game_finished(func() -> void: router.show_menu())],
 	])
+
+
+## A snack slot under the board: the treat's icon and name, glowing while it waits for a tap.
+class SnackButton extends Button:
+	var slot := 0
+	var id := ""
+	var active := false
+	var t := 0.0
+
+	func _init() -> void:
+		custom_minimum_size = Vector2(130, 130)
+		focus_mode = Control.FOCUS_NONE
+		flat = true
+
+	func _process(delta: float) -> void:
+		t += delta
+		if active:
+			queue_redraw()
+
+	func _draw() -> void:
+		var r := Rect2(Vector2(4, 4), size - Vector2(8, 8))
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color("4a3a22") if active else Color("2a241c")
+		sb.set_corner_radius_all(24)
+		sb.border_color = Color("f0d060") if active else UI.INK
+		sb.set_border_width_all(4)
+		draw_style_box(sb, r)
+		var font := UI.display_font()
+		if id == "":
+			draw_string(font, Vector2(0, size.y * 0.56), "snack", HORIZONTAL_ALIGNMENT_CENTER, size.x, 22, Color(1, 1, 1, 0.25))
+			return
+		Jokers.draw_icon(self, id, Vector2(size.x / 2.0, size.y * 0.4 + (sin(t * 8.0) * 3.0 if active else 0.0)), size.x * 0.24, t)
+		draw_string(font, Vector2(0, size.y * 0.86), str(Jokers.info(id)["name"]), HORIZONTAL_ALIGNMENT_CENTER, size.x, 22, Color.WHITE)
+
+
+## The run's monster jokers as a row of little faces.
+class JokerStrip extends Control:
+	var t := 0.0
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _process(delta: float) -> void:
+		t += delta
+		queue_redraw()
+
+	func _draw() -> void:
+		var n := Run.jokers.size()
+		var step := size.y * 1.15
+		for k in n:
+			var c := Vector2(size.x / 2.0 + (k - (n - 1) / 2.0) * step, size.y / 2.0)
+			Jokers.draw_icon(self, Run.jokers[k], c, size.y * 0.42, t + k)

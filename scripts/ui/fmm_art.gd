@@ -20,10 +20,12 @@ const ARCHER := 1
 const HEALER := 2
 const MAGE := 3
 const PALADIN := 4
+const BOMBER := 5
 const ROGUE := 6
 const BARD := 7
+const DOG := 11
 const C_HERO := {TANK: Color("5a7fc0"), ARCHER: Color("3fa094"), HEALER: Color("efe6d0"), MAGE: Color("a45ad0"),
-	PALADIN: Color("e0c060"), ROGUE: Color("6a7080"), BARD: Color("e890b8")}
+	PALADIN: Color("e0c060"), BOMBER: Color("d05848"), ROGUE: Color("6a7080"), BARD: Color("e890b8"), DOG: Color("8a6a48")}
 
 
 # ---------------------------------------------------------------- shape helpers
@@ -151,6 +153,31 @@ static func draw_hero(ci: CanvasItem, kind: int, pos: Vector2, s: float, t: floa
 			cel1(ci, oval(Vector2(fx * 11, 7), 8, 9.5, 12), Vector2(fx * 11, 7), Color("b07a40"), 2.4, 3.0)
 			stick(ci, Vector2(fx * 11, 0), Vector2(fx * 20, -14), Color("6a4628"), 2.4)
 			ci.draw_circle(Vector2(fx * 11, 8), 2.6, INK)
+		BOMBER:
+			var barrel := oval(Vector2(0, 5), 13, 13, 14)
+			cel1(ci, barrel, Vector2(0, 5), Color("7a5232"), 2.6, 4.0)
+			ci.draw_line(Vector2(-12, 0), Vector2(12, 0), INK, 2.2)
+			ci.draw_line(Vector2(-12, 10), Vector2(12, 10), INK, 2.2)
+			var bst := sin(ph) * walk
+			ci.draw_line(Vector2(-6 + bst * 3.0, 18), Vector2(-6 + bst * 4.0, 21 - maxf(0.0, cos(ph) * walk) * 3.0), INK, 5.5)
+			ci.draw_line(Vector2(6 - bst * 3.0, 18), Vector2(6 - bst * 4.0, 21 - maxf(0.0, -cos(ph) * walk) * 3.0), INK, 5.5)
+			_head(ci)
+			ci.draw_line(hc + Vector2(-9.5, -3), hc + Vector2(9.5, -3), col, 4.0)
+			ci.draw_line(Vector2(6, -6), Vector2(13, -20), Color("d8c090"), 2.6)
+			ci.draw_circle(Vector2(13, -20), 3.4 + sin(t * 20.0), C_GOLD)
+		DOG:
+			var di := 0
+			for lx in [-9.0, -4.0, 5.0, 10.0]:
+				var dsw := sin(ph * 1.6 + di * PI * 0.5 + (PI if di > 1 else 0.0)) * walk
+				ci.draw_line(Vector2(lx, 6), Vector2(lx + dsw * 5.0, 14 - maxf(0.0, dsw) * 2.5), INK, 4.6)
+				di += 1
+			cel1(ci, oval(Vector2(0, 3), 14, 8, 12), Vector2(0, 3), col, 2.4, 3.0)
+			stick(ci, Vector2(-fx * 13, 0), Vector2(-fx * (19.0 + 3.0 * sin(t * 15.0 + ph)), -8), col, 2.4)
+			var dh := Vector2(fx * 14, -4)
+			cel1(ci, oval(dh, 7.5, 6.5, 10), dh, col.lightened(0.08), 2.4, 2.4)
+			shape(ci, PackedVector2Array([dh + Vector2(-5, -5), dh + Vector2(-2, -12), dh + Vector2(1, -5)]), col.darkened(0.3), 2.0)
+			ci.draw_circle(dh + Vector2(fx * 2.5, -1), 1.3, INK)
+			ci.draw_circle(dh + Vector2(fx * 7, 1.5), 1.8, INK)
 	ci.draw_set_transform_matrix(Transform2D.IDENTITY)
 
 

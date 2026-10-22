@@ -8,10 +8,11 @@ const NIGHTS := 8
 const ROUNDS_PER_NIGHT := 3
 const MAX_NAPS := 3
 const ROUND_NAMES := ["Light snooze", "Deep sleep", "Hero raid"]
-# Score needed in round 1 of each night; deep sleep asks 1.3x, and raids 1.5x because squashed
-# heroes pay well (their danger is the naps). Tuned with tests/run_bot.gd (--calibrate).
-const BASE_TARGET := [120, 160, 200, 250, 300, 360, 430, 500]
-const TARGET_MULT := [1.0, 1.3, 1.5]
+# Score needed in round 1 of each night; deep sleep asks 1.3x, and raids 1.8x because squashed
+# heroes pay well (their danger is the naps). Later nights expect a few monster jokers.
+# Tuned with tests/run_bot.gd (--calibrate), which shops like a cautious player.
+const BASE_TARGET := [120, 170, 240, 320, 420, 540, 680, 850]
+const TARGET_MULT := [1.0, 1.3, 1.8]
 const PIECES := [15, 15, 18]
 
 ## The current run, mirrored to Save so it survives closing the app (resumes at round start).
@@ -19,6 +20,12 @@ static var round_n := 1
 static var naps := MAX_NAPS
 static var total := 0
 static var squashed := 0
+static var gold := 0
+static var jokers: Array = []
+static var snacks: Array = []
+## Shop offers for the round about to start (kept so leaving the app can't reroll them).
+static var offers: Array = []
+static var rerolls := 0
 
 
 static func start_new() -> void:
@@ -26,6 +33,11 @@ static func start_new() -> void:
 	naps = MAX_NAPS
 	total = 0
 	squashed = 0
+	gold = 4
+	jokers = []
+	snacks = []
+	offers = []
+	rerolls = 0
 	store()
 
 
@@ -37,6 +49,11 @@ static func resume() -> bool:
 	naps = int(r.get("naps", MAX_NAPS))
 	total = int(r.get("total", 0))
 	squashed = int(r.get("squashed", 0))
+	gold = int(r.get("gold", 0))
+	jokers = Array(r.get("jokers", []))
+	snacks = Array(r.get("snacks", []))
+	offers = Array(r.get("offers", []))
+	rerolls = int(r.get("rerolls", 0))
 	return true
 
 
@@ -46,7 +63,8 @@ static func has_saved() -> bool:
 
 
 static func store() -> void:
-	Save.data["run"] = {"round": round_n, "naps": naps, "total": total, "squashed": squashed}
+	Save.data["run"] = {"round": round_n, "naps": naps, "total": total, "squashed": squashed,
+		"gold": gold, "jokers": jokers, "snacks": snacks, "offers": offers, "rerolls": rerolls}
 	Save.save()
 
 
@@ -90,7 +108,29 @@ static func target(r: int) -> int:
 
 
 static func pieces(r: int) -> int:
-	return PIECES[slot_of(r)]
+	return PIECES[slot_of(r)] + (2 if has("troll") else 0)
+
+
+static func has(joker: String) -> bool:
+	return jokers.has(joker)
+
+
+## Gold for winning a round: 3, +1 per unused piece, +1 per 5 gold saved (up to +3), plus the Goblin Banker.
+## Returns the parts so the round-end screen can list them.
+static func round_reward(pieces_left: int) -> Array:
+	var parts: Array = [["Round cleared", 3]]
+	if pieces_left > 0:
+		parts.append(["Unused pieces", pieces_left])
+	var interest := mini(3, gold / 5)
+	if interest > 0:
+		parts.append(["Savings", interest])
+	if has("goblin"):
+		parts.append(["Goblin Banker", 3])
+	return parts
+
+
+static func reroll_cost() -> int:
+	return 2 + rerolls
 
 
 static func round_name(r: int) -> String:

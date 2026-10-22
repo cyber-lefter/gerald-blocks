@@ -12,11 +12,14 @@ func _ready() -> void:
 	var runs := 10
 	var verbose := false
 	var calibrate := false
+	var no_shop := false
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--runs="):
 			runs = int(a.split("=")[1])
 		elif a == "--verbose":
 			verbose = true
+		elif a == "--no-shop":
+			no_shop = true
 		elif a == "--calibrate":
 			# Plays every piece of every round with no target and reports the scores reached.
 			calibrate = true
@@ -38,7 +41,22 @@ func _ready() -> void:
 			var view := screen.view
 			if calibrate:
 				view.target = 1000000000
+			var moves := 0
 			while not view.over:
+				moves += 1
+				# Snacks get used now and then, so their code runs too.
+				if moves % 4 == 0 and not Run.snacks.is_empty():
+					screen._on_snack(0)
+					if view.tool == "tongue":
+						var h: Dictionary = view.heroes[0]
+						view._eat_hero(Vector2i(int(h["x"]), int(h["y"])))
+					elif view.tool == "pebble":
+						for i in 64:
+							if view.color[i] != 0:
+								view._hammer(Vector2i(i % 8, i / 8))
+								break
+					if view.over:
+						break
 				_bot_move(view)
 			var won := not view.lost
 			if calibrate and view.end_reason != "space":
@@ -51,6 +69,8 @@ func _ready() -> void:
 				print("run %d round %d target %d score %d left %d naps %d %s" % [k, r, view.target, view.score, view.pieces_left, Run.naps, "WIN" if won else view.end_reason])
 			view.pending_finish = {}
 			screen._on_finished(won)
+			if won and r < Run.last_round() and not no_shop:
+				_shop()
 			if not won:
 				reached.append(r)
 				fails[view.end_reason] = int(fails.get(view.end_reason, 0)) + 1
@@ -60,6 +80,7 @@ func _ready() -> void:
 				break
 	reached.sort()
 	print("rounds reached: ", reached)
+	print("last run's jokers: ", Run.jokers, " gold ", Run.gold)
 	print("fail reasons: ", fails)
 	var keys := per_round.keys()
 	keys.sort()
@@ -69,6 +90,24 @@ func _ready() -> void:
 		print("round %2d target %5d: %d/%d won, scores %s" % [r, Run.target(r), wins, arr.size(), str(arr)])
 	print("RUN BOT DONE")
 	get_tree().quit()
+
+
+## Buys what it can afford, monsters first, then a snack.
+func _shop() -> void:
+	RunShop.open_shop()
+	for k in Run.offers.size():
+		var id: String = Run.offers[k]
+		var price := int(Jokers.info(id)["price"])
+		if Run.gold < price:
+			continue
+		if Jokers.is_snack(id) and Run.snacks.size() < Jokers.MAX_SNACKS:
+			Run.snacks.append(id)
+			Run.gold -= price
+		elif not Jokers.is_snack(id) and Run.jokers.size() < Jokers.MAX_JOKERS:
+			Run.jokers.append(id)
+			Run.gold -= price
+	Run.offers = []
+	Run.store()
 
 
 ## Greedy: clear lines (more if a hero is in them), keep the board open, keep heroes away from the bed.
