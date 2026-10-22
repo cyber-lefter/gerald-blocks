@@ -304,9 +304,9 @@ class IslandView extends Control:
 			# Locked: a "?" seal and a small "soon" tag.
 			var bob := sin(t * 2.0 + i) * 3.0 * u
 			draw_circle(c + Vector2(0, 5 * u + bob), 30.0 * u, Color(INK, 0.5))
-			draw_circle(c + Vector2(0, bob), 30.0 * u, Color("2c2766"))
+			draw_circle(c + Vector2(0, bob), 30.0 * u, Color("3a3028"))
 			draw_arc(c + Vector2(0, bob), 30.0 * u, 0, TAU, 32, Color(1, 1, 1, 0.5), 3.0 * u)
-			_text("?", c + Vector2(0, 14 * u + bob), 42.0 * u, Color("ffd23f"))
+			_text("?", c + Vector2(0, 14 * u + bob), 42.0 * u, Color("f0d060"))
 			var tag := "Soon" if not Levels.region_ready(i) else "Locked"
 			_pill(tag, c + Vector2(0, 52 * u), 22.0 * u, Color(1, 1, 1, 0.85), INK)
 		else:
@@ -327,7 +327,7 @@ class IslandView extends Control:
 			for k in stack.size():
 				var bob := sin(t * 2.2 + k * 0.9) * 3.0 * u
 				BlockArt.draw_block(self, pal[(k * 3 + i) % pal.size()], c + stack[k] * 36.0 * u + Vector2(0, bob - 10 * u), 36.0 * u)
-			_pill(str(reg["name"]), c + Vector2(0, 42 * u), 30.0 * u, Color("ffd23f"), INK)
+			_pill(str(reg["name"]), c + Vector2(0, 42 * u), 30.0 * u, Color("f0d060"), INK)
 			_pill("%d/%d levels   %d/%d stars" % [done, last - first + 1, stars, (last - first + 1) * 3], c + Vector2(0, 80 * u), 21.0 * u, Color(INK, 0.85), Color.WHITE)
 		if toasts.has(i):
 			var a := clampf(toasts[i] / 0.3, 0.0, 1.0)
@@ -363,7 +363,7 @@ class IslandView extends Control:
 			# A crescent moon on a little post.
 			draw_line(p + Vector2(0, 14) * s, p + Vector2(0, -6) * s, Color("8a5a2b"), 4.0 * s)
 			draw_circle(p + Vector2(0, -18) * s, 16.0 * s, Color("ffe9a8"))
-			draw_circle(p + Vector2(7, -22) * s, 13.0 * s, Color("2c2766") if look() == "day" else Color("1a1240"))
+			draw_circle(p + Vector2(7, -22) * s, 13.0 * s, Color("3a3028") if look() == "day" else Color("1a1240"))
 		else:
 			var big: bool = chest["id"] == "big"
 			var k := 1.2 if big else 1.0
@@ -371,13 +371,13 @@ class IslandView extends Control:
 			draw_rect(Rect2(p + Vector2(-22, -4) * s * k, Vector2(44, 26) * s * k), Color(0, 0, 0, 0.25))
 			draw_rect(Rect2(p + Vector2(-22, -8) * s * k, Vector2(44, 26) * s * k), wood)
 			draw_rect(Rect2(p + Vector2(-24, -20) * s * k, Vector2(48, 14) * s * k), wood.lightened(0.1))
-			draw_rect(Rect2(p + Vector2(-24, -9) * s * k, Vector2(48, 4) * s * k), Color("ffd23f"))
-			draw_rect(Rect2(p + Vector2(-5, -12) * s * k, Vector2(10, 12) * s * k), Color("ffd23f"))
+			draw_rect(Rect2(p + Vector2(-24, -9) * s * k, Vector2(48, 4) * s * k), Color("f0d060"))
+			draw_rect(Rect2(p + Vector2(-5, -12) * s * k, Vector2(10, 12) * s * k), Color("f0d060"))
 		# Price tag underneath, or the current look once the dusk island is owned.
 		var tag := str(cost)
 		if owned:
 			tag = "Dusk" if look() == "dusk" else "Day"
-		_pill(tag, p + Vector2(0, 38 * u), 20.0 * u, Color("ffd23f") if ready else Color(INK, 0.85), INK if ready else Color.WHITE)
+		_pill(tag, p + Vector2(0, 38 * u), 20.0 * u, Color("f0d060") if ready else Color(INK, 0.85), INK if ready else Color.WHITE)
 		if not owned:
 			_star(p + Vector2(-_tag_w(tag, 20.0 * u) / 2.0 - 10.0 * u, 38 * u), 9.0 * u)
 		if toasts.has(100 + c):
@@ -401,7 +401,7 @@ class IslandView extends Control:
 		for k in 10:
 			var a := -PI / 2.0 + k * PI / 5.0
 			pts.append(c + Vector2(cos(a), sin(a)) * (r if k % 2 == 0 else r * 0.45))
-		draw_colored_polygon(pts, Color("ffd23f"))
+		draw_colored_polygon(pts, Color("f0d060"))
 
 	func _draw_boat(u: float) -> void:
 		var p := Vector2(size.x * (0.16 + 0.03 * sin(t * 0.3)), size.y * 0.11 + sin(t * 1.6) * 3.0 * u)

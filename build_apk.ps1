@@ -1,4 +1,4 @@
-# Builds a signed debug APK into build\PrismBlocks.apk.
+# Builds a signed debug APK into build\GeraldBlocks.apk.
 # Godot needs Java on PATH so it can run Android's apksigner.
 # Set $env:GODOT to your Godot 4.3 .exe if it isn't in one of the places below.
 $ErrorActionPreference = "Stop"
@@ -15,7 +15,7 @@ $godot = $candidates | Where-Object { $_ -and (Test-Path $_ -PathType Leaf) } | 
 if (-not $godot) { throw "Godot 4.3 not found. Set `$env:GODOT to its .exe path." }
 
 $project = $PSScriptRoot
-$apk = "$project\build\PrismBlocks.apk"
+$apk = "$project\build\GeraldBlocks.apk"
 New-Item -ItemType Directory -Force "$project\build" | Out-Null
 $before = if (Test-Path $apk) { (Get-Item $apk).LastWriteTime } else { [datetime]::MinValue }
 $proc = Start-Process -FilePath $godot -ArgumentList "--headless", "--path", "`"$project`"", "--export-debug", "Android", "`"$apk`"" -NoNewWindow -Wait -PassThru

@@ -33,7 +33,7 @@ func _ready() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 16)
 	col.add_child(header)
-	var back := UI.button("Back", Color("2c2766"), 28, 80)
+	var back := UI.button("Back", Color("3a3028"), 28, 80)
 	back.pressed.connect(func() -> void: router.show_menu())
 	header.add_child(back)
 	var title := UI.label("Shop", 54, Color.WHITE, 12)
@@ -58,7 +58,7 @@ func go_back() -> void:
 
 
 func _section(text: String) -> void:
-	var l := UI.label(text, 34, Color(0.75, 0.72, 0.95))
+	var l := UI.label(text, 34, Color("a09480"))
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	list.add_child(l)
 
@@ -84,7 +84,7 @@ func _row(left: Control, title: String, sub: String, action: Button) -> void:
 	var t := UI.label(title, 32, Color.WHITE)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(t)
-	var s := UI.label(sub, 22, Color(0.75, 0.72, 0.95))
+	var s := UI.label(sub, 22, Color("a09480"))
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(s)
@@ -99,7 +99,7 @@ func _rebuild() -> void:
 
 	_section("No ads")
 	# Placeholder until in-app purchases are set up; Save.data["ads_removed"] then turns off interstitials.
-	var remove := UI.button("Soon", Color("2c2766"), 28, 84)
+	var remove := UI.button("Soon", Color("3a3028"), 28, 84)
 	remove.disabled = true
 	_row(null, "Remove ads", "No more ads between games. Rewarded ads you choose stay.", remove)
 
@@ -113,16 +113,16 @@ func _rebuild() -> void:
 		swatch.custom_minimum_size = Vector2(150, 84)
 		var action: Button
 		if Save.data["theme"] == id:
-			action = UI.button("In use", Color("2c2766"), 26, 84)
+			action = UI.button("In use", Color("3a3028"), 26, 84)
 			action.disabled = true
 		elif Save.owns_theme(id):
-			action = UI.button("Use", Color("7b5cff"), 28, 84)
+			action = UI.button("Use", Color("a0603a"), 28, 84)
 			action.pressed.connect(func() -> void:
 				Save.set_theme(id)
 				_rebuild()
 			)
 		else:
-			action = UI.button(UI.fmt(price), Color("ffd23f"), 28, 84)
+			action = UI.button(UI.fmt(price), Color("f0d060"), 28, 84)
 			action.disabled = Save.coins() < price
 			action.pressed.connect(func() -> void:
 				if Save.buy_theme(id, price):
@@ -135,7 +135,7 @@ func _rebuild() -> void:
 	for p in POWER_PACKS:
 		var kind: String = p[0]
 		var cost: int = p[3]
-		var buy := UI.button(UI.fmt(cost), Color("ffd23f"), 28, 84)
+		var buy := UI.button(UI.fmt(cost), Color("f0d060"), 28, 84)
 		buy.disabled = Save.coins() < cost
 		buy.pressed.connect(func() -> void:
 			if Save.spend(cost):
@@ -147,7 +147,7 @@ func _rebuild() -> void:
 
 	_section("Free coins")
 	var left := Save.ad_coins_left()
-	var watch := UI.button("Watch ad", Color("2fbf71"), 28, 84)
+	var watch := UI.button("Watch ad", Color("6a8a3a"), 28, 84)
 	watch.disabled = left <= 0
 	watch.pressed.connect(func() -> void:
 		Ads.show_rewarded("shop_coins", func() -> void:

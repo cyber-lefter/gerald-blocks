@@ -21,7 +21,7 @@ static func frame(screen: Control, title: String, on_back: Callable, coins := fa
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 16)
 	col.add_child(header)
-	var back := UI.button("Back", Color("2c2766"), 28, 80)
+	var back := UI.button("Back", Color("3a3028"), 28, 80)
 	back.pressed.connect(on_back)
 	header.add_child(back)
 	var t := UI.label(title, 54, Color.WHITE, 12)

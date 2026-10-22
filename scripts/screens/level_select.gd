@@ -24,7 +24,7 @@ func _ready() -> void:
 	var header := HBoxContainer.new()
 	header.add_theme_constant_override("separation", 16)
 	col.add_child(header)
-	var back := UI.button("Back", Color("2c2766"), 28, 80)
+	var back := UI.button("Back", Color("3a3028"), 28, 80)
 	back.pressed.connect(func() -> void: router.show_island())
 	header.add_child(back)
 	var title := UI.label(str(Levels.REGIONS[region]["name"]), 46, Color.WHITE, 12)
@@ -57,8 +57,8 @@ func _ready() -> void:
 	var sv := VBoxContainer.new()
 	sv.add_theme_constant_override("separation", 4)
 	soon.add_child(sv)
-	sv.add_child(UI.label("Next region coming soon", 36, Color("ffd23f")))
-	var sub := UI.label("New lands and mechanics are on the way. Finish this one to be ready.", 24, Color(0.75, 0.72, 0.95))
+	sv.add_child(UI.label("Next region coming soon", 36, Color("f0d060")))
+	var sub := UI.label("New lands and mechanics are on the way. Finish this one to be ready.", 24, Color("a09480"))
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	sv.add_child(sub)
 	stack.add_child(soon)
@@ -69,7 +69,7 @@ func _ready() -> void:
 	for n in range(int(reg["first"]), int(reg["last"]) + 1):
 		var stars := Save.stars(n)
 		var open := n <= unlocked
-		var color := Color("2fbf71") if stars > 0 else (Color("7b5cff") if open else Color("2c2766"))
+		var color := Color("6a8a3a") if stars > 0 else (Color("a0603a") if open else Color("3a3028"))
 		var b := UI.button(str(n), color, 40, 132)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.disabled = not open

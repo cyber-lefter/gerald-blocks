@@ -3,6 +3,9 @@ extends RefCounted
 ## Board and block color themes. Prices are in coins.
 
 const LIST := [
+	# Five More Minutes' lair: stone and soot, with warm earthy blocks that still read apart.
+	{"id": "lair", "name": "The Lair", "price": 0, "top": "2a2219", "bottom": "0f0c09", "board": "1a1510", "slot": "2e271e",
+		"blocks": ["d05848", "e08a3a", "f0d060", "8fb04a", "3fa094", "5a7fc0", "a45ad0", "e890b8"]},
 	# Jewel tones on a deep, low-saturation board: the blocks carry all the color.
 	{"id": "midnight", "name": "Midnight", "price": 0, "top": "2b1d72", "bottom": "0e0b29", "board": "0b0a22", "slot": "18163f",
 		"blocks": ["ff3d68", "ff8a1f", "ffcf1a", "22e07a", "1ec8ff", "3f6dff", "9d4dff", "ff45c4"]},

@@ -50,6 +50,23 @@ class Backdrop extends Control:
 
 	func _draw_ambience(id: String, pal: Array) -> void:
 		var u := size.x / 720.0
+		if id == "lair":
+			# Five More Minutes' lair: flagstones, two flickering torch glows and embers drifting up.
+			var step := 120.0 * u
+			for k in int(size.y / step) + 1:
+				var off := (k % 2) * step * 0.5
+				draw_line(Vector2(0, k * step), Vector2(size.x, k * step), Color(0, 0, 0, 0.18), 3.0 * u)
+				for j in int(size.x / step) + 2:
+					draw_line(Vector2(j * step + off, k * step), Vector2(j * step + off, (k + 1) * step), Color(0, 0, 0, 0.18), 3.0 * u)
+			for side in [0.06, 0.94]:
+				var fl := 0.85 + 0.1 * sin(t * 9.0 + side * 7.0) + 0.05 * sin(t * 23.0)
+				BlockArt.draw_glow(self, Vector2(side * size.x, size.y * 0.12), 260.0 * u * fl, Color(1.0, 0.6, 0.25, 0.22))
+			for i in ambience.size():
+				var a: Dictionary = ambience[i]
+				var p := Vector2(float(a["x"]) + sin(t * 0.9 + float(a["phase"])) * 0.02, 1.05 - fposmod(float(a["y"]) + t * float(a["speed"]) * 0.6, 1.1)) * size
+				var tw := 0.5 + 0.5 * sin(t * 3.0 + float(a["phase"]))
+				BlockArt.draw_glow(self, p, 7.0 * u * float(a["s"]), Color(1.0, 0.55 + 0.2 * tw, 0.2, 0.35 * tw))
+			return
 		if id == "neon":
 			# Faint grid lines rolling downward.
 			var step := 90.0 * u
@@ -134,7 +151,7 @@ class StarRow extends Control:
 				var glow := maxf(0.0, 1.0 - (k - 1.0) / 2.0) if k >= 1.0 else 0.0
 				if glow > 0.0:
 					BlockArt.draw_glow(self, c, r * (1.6 + (1.0 - glow) * 2.0), Color(1, 0.85, 0.3, 0.5 * glow))
-			_star(c, r * sc, Color("ffd23f"))
+			_star(c, r * sc, Color("f0d060"))
 
 	func _star(c: Vector2, r: float, col: Color) -> void:
 		var pts := PackedVector2Array()
@@ -188,7 +205,7 @@ class CoinIcon extends Control:
 		var c := size / 2.0
 		var r := minf(size.x, size.y) / 2.0
 		draw_circle(c, r, Color("c98a12"))
-		draw_circle(c - Vector2(0, r * 0.08), r * 0.86, Color("ffd23f"))
+		draw_circle(c - Vector2(0, r * 0.08), r * 0.86, Color("f0d060"))
 		draw_circle(c - Vector2(0, r * 0.08), r * 0.52, Color("ffe680"))
 		draw_circle(c + Vector2(-r * 0.3, -r * 0.38), r * 0.14, Color(1, 1, 1, 0.8))
 
@@ -204,7 +221,7 @@ class CoinPill extends PanelContainer:
 		h.add_theme_constant_override("separation", 10)
 		add_child(h)
 		h.add_child(CoinIcon.new())
-		label = UI.label(UI.fmt(Save.coins()), 32, Color("ffd23f"))
+		label = UI.label(UI.fmt(Save.coins()), 32, Color("f0d060"))
 		h.add_child(label)
 		Save.coins_changed.connect(_on_coins)
 
@@ -230,7 +247,7 @@ class PowerButton extends Button:
 		focus_mode = Control.FOCUS_NONE
 		for state in ["normal", "hover", "pressed", "disabled"]:
 			var sb := StyleBoxFlat.new()
-			sb.bg_color = Color("2c2766") if state != "pressed" else Color("25205a")
+			sb.bg_color = Color("3a3028") if state != "pressed" else Color("25205a")
 			sb.set_corner_radius_all(28)
 			sb.border_color = Color("1a1645")
 			sb.border_width_bottom = 3 if state == "pressed" else 7
@@ -249,7 +266,7 @@ class PowerButton extends Button:
 			var glow := StyleBoxFlat.new()
 			glow.draw_center = false
 			glow.set_border_width_all(5)
-			glow.border_color = Color("ffd23f")
+			glow.border_color = Color("f0d060")
 			glow.set_corner_radius_all(28)
 			draw_style_box(glow, Rect2(Vector2.ZERO, size))
 		match kind:

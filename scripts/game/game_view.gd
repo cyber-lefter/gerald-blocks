@@ -59,6 +59,30 @@ var revived := false
 var undo_state: Dictionary = {}
 var tool := ""
 
+# Run mode: a score target within a piece budget; raid rounds send heroes down the board.
+const HERO_TYPES := {"squire": {"hp": 1, "steps": 1}, "elf": {"hp": 1, "steps": 2}, "knight": {"hp": 2, "steps": 1}, "paladin": {"hp": 3, "steps": 1}}
+const YELPS := ["MY HAT!", "Not the face!", "Tell my mum!", "I had a prophecy!", "AAAAA", "Worth it!", "Oof.", "Unfair!", "My sword!"]
+const PEEL := ["My armour!", "That was rented!", "Just a flesh wound."]
+const G_START := ["Mm. Five more minutes.", "Don't wake me. Score points.", "Quiet blocks only, please.", "I'm resting my eyes."]
+const G_RAID := ["Heroes. In my room. At this hour.", "Squash them before they reach the bed.", "Ugh. Adventurers again."]
+const G_WAKE := ["Oi. I was sleeping.", "Who let him in?", "That's one nap ruined.", "Out. OUT."]
+const G_BONK := ["Lovely.", "Flat as a crumpet.", "Goodnight, hero.", "Mm. Satisfying."]
+const G_WIN := ["Bliss.", "Good. Now hush.", "*contented snore*"]
+var round_n := 0
+var target := 0
+var pieces_left := 0
+var raid := false
+var heroes: Array = []
+var flyers: Array = []
+var spawn_in := 2
+var next_hero_id := 1
+var squashed := 0
+var end_reason := ""
+var angry_t := -9.0
+var say_text := ""
+var say_t := -9.0
+var bed_rect := Rect2()
+
 # Layout
 var area := Rect2()
 var cell := 60.0
@@ -145,6 +169,17 @@ func setup(p_mode: String, p_level: Dictionary) -> void:
 			color[i] = STONE if c["kind"] == "stone" else int(c["color"]) + 1
 			kind[i] = KIND_GEM if c["kind"] == "gem" else KIND_NORMAL
 			ice[i] = int(c["ice"])
+	if mode == "run":
+		round_n = Run.round_n
+		target = Run.target(round_n)
+		pieces_left = Run.pieces(round_n)
+		raid = Run.is_raid(round_n)
+		dealer.base = Run.difficulty(round_n)
+		dealer.ramp = 0.15
+		if raid:
+			_spawn_hero()
+			_spawn_hero()
+		say(G_RAID if raid else G_START)
 	_deal()
 	_update_near_lines()
 
@@ -157,21 +192,24 @@ func set_area(r: Rect2) -> void:
 	area = r
 	var w := r.size.x
 	var h := r.size.y
-	cell = floorf(minf((w - 48.0) / (N + 0.4), (h - 20.0) / (N + 0.4 + 3.5)))
+	# Run mode keeps the toad's nest between the board and the tray.
+	var bed := 1.55 if mode == "run" else 0.0
+	cell = floorf(minf((w - 48.0) / (N + 0.4), (h - 20.0) / (N + 0.4 + 3.5 + bed)))
 	cell = maxf(cell, 20.0)
 	var pad := cell * 0.2
 	var bs := cell * N + pad * 2.0
-	var used := bs + cell * 0.3 + cell * 3.1
+	var used := bs + cell * 0.3 + cell * 3.1 + cell * bed
 	var top := r.position.y + maxf(6.0, (h - used) * 0.4)
 	board_rect = Rect2(r.position.x + (w - bs) / 2.0, top, bs, bs)
 	inner = board_rect.position + Vector2(pad, pad)
-	tray_y = board_rect.end.y + cell * 0.3
+	bed_rect = Rect2(board_rect.position.x, board_rect.end.y + cell * 0.15, bs, cell * 1.35)
+	tray_y = board_rect.end.y + cell * 0.3 + cell * bed
 	tray_h = cell * 3.1
 	tray_size = minf(cell * 0.56, (w / 3.0 * 0.86) / 5.0)
 	sb_board.bg_color = theme["board"]
 	sb_board.set_corner_radius_all(int(cell * 0.35))
-	sb_board.border_color = Color(1, 1, 1, 0.08)
-	sb_board.set_border_width_all(3)
+	sb_board.border_color = FmmArt.INK
+	sb_board.set_border_width_all(5)
 	sb_board.shadow_color = Color(0, 0, 0, 0.35)
 	sb_board.shadow_size = 18
 	sb_slot.bg_color = theme["slot"]
@@ -186,6 +224,8 @@ func occupancy() -> PackedByteArray:
 	o.resize(N * N)
 	for i in N * N:
 		o[i] = 1 if color[i] != 0 else 0
+	for h in heroes:
+		o[int(h["y"]) * N + int(h["x"])] = 1
 	return o
 
 
@@ -194,7 +234,17 @@ func sticky() -> PackedByteArray:
 	o.resize(N * N)
 	for i in N * N:
 		o[i] = 1 if color[i] == STONE or ice[i] > 0 else 0
+	for h in heroes:
+		if int(h["hp"]) > 1:
+			o[int(h["y"]) * N + int(h["x"])] = 1
 	return o
+
+
+func hero_at(x: int, y: int) -> Dictionary:
+	for h in heroes:
+		if int(h["x"]) == x and int(h["y"]) == y:
+			return h
+	return {}
 
 
 func _color_of(i: int) -> Color:
@@ -234,12 +284,13 @@ func shown_score() -> int:
 ## Rows and columns missing exactly one block get a soft hint glow.
 func _update_near_lines() -> void:
 	near_lines = []
+	var occ := occupancy()
 	for line in 2 * N:
 		var gap := -1
 		var empty := 0
 		for j in N:
 			var i := line * N + j if line < N else j * N + (line - N)
-			if color[i] == 0:
+			if occ[i] == 0:
 				empty += 1
 				gap = i
 		if empty == 1:
@@ -266,15 +317,20 @@ func _tick(ms: int, amplitude: float) -> void:
 
 func _deal() -> void:
 	dealer.trays += 1
-	var shapes := dealer.deal(occupancy(), sticky(), score)
+	# In a run the score restarts every round, so difficulty follows pieces played instead.
+	var shapes := dealer.deal(occupancy(), sticky(), placements * 60 if mode == "run" else score)
 	var order := [0, 1, 2, 3, 4, 5, 6, 7]
 	for i in range(7, 0, -1):
 		var j := dealer.rng.randi_range(0, i)
 		var tmp = order[i]
 		order[i] = order[j]
 		order[j] = tmp
-	var bombs: bool = level.get("bombs", false) if mode == "adventure" else score >= 400
+	var bombs: bool = level.get("bombs", false) if mode == "adventure" else (score >= 400 and mode != "run")
 	for i in 3:
+		if mode == "run" and i >= pieces_left:
+			# The last tray of a round only holds the pieces still left in the budget.
+			tray[i] = null
+			continue
 		var s: Dictionary = shapes[i]
 		var b := -1
 		var n: int = s["cells"].size()
@@ -405,6 +461,8 @@ func _place(slot: int, gx: int, gy: int) -> void:
 		pop[i] = time
 	tray[slot] = null
 	placements += 1
+	if mode == "run":
+		pieces_left -= 1
 	score += cells.size()
 	# Small random pitch changes keep repeated placements from sounding mechanical; bigger pieces sound heavier.
 	Sfx.play("place", randf_range(0.95, 1.05) * (1.08 - 0.02 * cells.size()))
@@ -449,6 +507,7 @@ func _place(slot: int, gx: int, gy: int) -> void:
 		var mult := 1.0 + 0.5 * (streak - 1)
 		var pts := int(line_count * line_count * 20 * mult) * (1 + mono)
 		pts += blasted * 5 + int(res["gems"]) * 50
+		pts += _hit_heroes(hit, mult)
 		var board_clear := _board_empty()
 		if board_clear:
 			pts += 500
@@ -628,6 +687,9 @@ func _board_empty() -> bool:
 
 
 func _after_move() -> void:
+	if mode == "run":
+		_after_run_move()
+		return
 	if mode == "adventure":
 		if _goal_type() == "score":
 			goal_current = score
@@ -649,11 +711,58 @@ func _after_move() -> void:
 	_check_over()
 
 
+func _after_run_move() -> void:
+	if score >= target:
+		over = true
+		drag = {}
+		tool = ""
+		pending_finish = {"at": time + 1.2, "won": true}
+		say(G_WIN)
+		# Whoever is still on the board legs it.
+		for h in heroes:
+			flyers.append({"look": _look(h), "p": _cell_center(h["px"], h["py"]), "v": Vector2(randf_range(-200, 200), randf_range(-700, -500)) * cell / 60.0,
+				"r": 0.0, "vr": randf_range(-6, 6), "t0": time, "yelp": "RUN!"})
+		heroes = []
+		Sfx.play("win")
+		Sfx.vibrate(80, true, 1.0)
+		return
+	if raid:
+		_advance_heroes()
+		spawn_in -= 1
+		if spawn_in <= 0:
+			var night := Run.night_of(round_n)
+			_spawn_hero()
+			if night >= 4 and randf() < 0.25:
+				_spawn_hero()
+			spawn_in = maxi(1, 3 - (night - 1) / 3)
+		_update_near_lines()
+		if Run.naps <= 0:
+			end_reason = "woke"
+			_lose()
+			return
+	var empty := true
+	for p in tray:
+		if p != null:
+			empty = false
+	if empty:
+		if pieces_left <= 0:
+			end_reason = "pieces"
+			_lose()
+			return
+		_deal()
+	_check_over()
+
+
 func _check_over() -> void:
 	var occ := occupancy()
 	for p in tray:
 		if p != null and BoardLogic.fits_anywhere(occ, p["shape"]):
 			return
+	end_reason = "space"
+	_lose()
+
+
+func _lose() -> void:
 	over = true
 	lost = true
 	over_t = time
@@ -723,6 +832,131 @@ func revive() -> void:
 	_deal()
 	_update_near_lines()
 	_after_move()
+
+
+# ---------------------------------------------------------------- heroes (raid rounds)
+
+func say(lines: Array) -> void:
+	say_text = lines.pick_random()
+	say_t = time
+
+
+func _hero_type() -> String:
+	var night := Run.night_of(round_n)
+	var r := randf()
+	if night >= 4 and r < 0.12:
+		return "paladin"
+	if night >= 2 and r < 0.35:
+		return "knight"
+	if r < (0.5 if night >= 2 else 0.3):
+		return "elf"
+	return "squire"
+
+
+static func _look(h: Dictionary) -> int:
+	return int(h["kind"])
+
+
+func _spawn_hero() -> void:
+	var occ := occupancy()
+	var free: Array = []
+	for x in N:
+		if occ[x] == 0:
+			free.append(x)
+	if free.is_empty():
+		return
+	var x: int = free.pick_random()
+	var t := _hero_type()
+	heroes.append({"id": next_hero_id, "type": t, "kind": HeroArt.kind_for(t), "hp": int(HERO_TYPES[t]["hp"]), "x": x, "y": 0,
+		"px": float(x), "py": -1.2, "bob": randf() * 6.0})
+	next_hero_id += 1
+
+
+## Each hero walks toward the bed: straight down when free, sideways around blocks, or waits.
+func _advance_heroes() -> void:
+	var order := heroes.duplicate()
+	order.sort_custom(func(a, b): return int(a["y"]) > int(b["y"]))
+	for h in order:
+		if not heroes.has(h):
+			continue
+		for s in int(HERO_TYPES[h["type"]]["steps"]):
+			var x: int = h["x"]
+			var y: int = h["y"]
+			if y == N - 1:
+				_reach_bed(h)
+				break
+			if _walkable(x, y + 1):
+				h["y"] = y + 1
+				continue
+			var dirs := [-1, 1] if randf() < 0.5 else [1, -1]
+			var moved := false
+			for d in dirs:
+				if _walkable(x + d, y):
+					h["x"] = x + d
+					moved = true
+					break
+			if not moved:
+				break
+
+
+func _hero_near_bed() -> bool:
+	for h in heroes:
+		if int(h["y"]) >= N - 3:
+			return true
+	return false
+
+
+func _walkable(x: int, y: int) -> bool:
+	return x >= 0 and x < N and y >= 0 and y < N and color[y * N + x] == 0 and hero_at(x, y).is_empty()
+
+
+func _reach_bed(h: Dictionary) -> void:
+	heroes.erase(h)
+	Run.naps -= 1
+	var c := _cell_center(float(h["x"]), float(N - 1)) + Vector2(0, cell)
+	flyers.append({"look": _look(h), "p": c, "v": Vector2(randf_range(-150, 150), -900) * cell / 60.0,
+		"r": 0.0, "vr": randf_range(-20, 20), "t0": time, "yelp": "Boing!"})
+	angry_t = time
+	if not reduced:
+		shake = maxf(shake, 10.0)
+	say(G_WAKE)
+	_text("-1 NAP", bed_rect.get_center() - Vector2(0, cell * 0.8), cell * 0.8, false)
+	Sfx.play("over", 1.2)
+	Sfx.vibrate(120, true, 1.0)
+
+
+## Heroes standing in cleared lines take a hit; the ones that run out of armour get flung off screen.
+func _hit_heroes(hit: Dictionary, mult: float) -> int:
+	var pts := 0
+	var k := 0
+	for h in heroes.duplicate():
+		var i := int(h["y"]) * N + int(h["x"])
+		if not hit.has(i):
+			continue
+		h["hp"] = int(h["hp"]) - 1
+		k += 1
+		var c := _cell_center(float(h["x"]), float(h["y"]))
+		if int(h["hp"]) <= 0:
+			heroes.erase(h)
+			squashed += 1
+			flyers.append({"look": _look(h), "p": c,
+				"v": Vector2(randf_range(-500, 500), randf_range(-1100, -700)) * cell / 60.0,
+				"r": 0.0, "vr": randf_range(-24, 24), "t0": time, "yelp": YELPS.pick_random()})
+			pts += int(60 * mult * k)
+			_text("BONK!", c - Vector2(0, cell * 0.4), cell * 0.85, true, 0.04)
+			_spark(c, Color(1.0, 0.84, 0.3), 10, 1.4)
+		else:
+			_text(PEEL.pick_random(), c - Vector2(0, cell * 0.6), cell * 0.45, false, 0.04)
+			_burst(c, Color("9aa3ad"), 10)
+	if k > 0:
+		Sfx.play("bomb", 1.4)
+		Sfx.play_later("pick", 0.09, 0.6)
+		if randf() < 0.45:
+			say(G_BONK)
+		if not reduced:
+			shake = maxf(shake, 6.0 + k * 3.0)
+		Sfx.vibrate(50, true, 0.9)
+	return pts
 
 
 # ---------------------------------------------------------------- power-ups
@@ -941,6 +1175,18 @@ func _process(delta: float) -> void:
 		keep.append(q)
 	particles = keep
 
+	for h in heroes:
+		h["px"] = lerpf(float(h["px"]), float(h["x"]), minf(1.0, d * 12.0))
+		h["py"] = lerpf(float(h["py"]), float(h["y"]), minf(1.0, d * 12.0))
+	keep = []
+	for f in flyers:
+		f["v"] = f["v"] + Vector2(0, gravity * 1.05 * d)
+		f["p"] = f["p"] + f["v"] * d
+		f["r"] = float(f["r"]) + float(f["vr"]) * d
+		if f["p"].y < area.end.y + cell * 4.0 and time - float(f["t0"]) < 4.0:
+			keep.append(f)
+	flyers = keep
+
 	keep = []
 	for o in orbs:
 		if time >= float(o["t0"]) + float(o["dur"]):
@@ -997,6 +1243,13 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if area.size.x <= 0.0:
 		return
+	if mode == "run":
+		var mood := "nap"
+		if time - angry_t < 1.4 or end_reason == "woke":
+			mood = "angry"
+		elif raid and _hero_near_bed():
+			mood = "awake"
+		HeroArt.draw_bed(self, bed_rect, cell, time, mood, Run.naps, font)
 	draw_style_box(sb_board, board_rect)
 	for y in N:
 		for x in N:
@@ -1006,6 +1259,8 @@ func _draw() -> void:
 		_draw_crumble()
 	else:
 		_draw_blocks()
+	if mode == "run":
+		_draw_heroes()
 
 	# Ghost of the dragged piece, and pulsing light on the lines it would clear.
 	if not drag.is_empty() and drag["ghost"] != null:
@@ -1097,9 +1352,16 @@ func _draw() -> void:
 		draw_rect(Rect2(-ps / 2.0, -ps / 2.0, ps, ps), col)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
+	for f in flyers:
+		FmmArt.draw_hero(self, f["look"], f["p"], cell / 40.0, time, 1.0, f["r"], 1.0, 0.0)
+		if time - float(f["t0"]) < 0.9:
+			_draw_yelp(f["yelp"], f["p"] - Vector2(0, cell * 0.9))
+
 	for f in texts:
 		_draw_text(f)
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	if mode == "run":
+		HeroArt.draw_bubble(self, bed_rect, cell, say_text, clampf((3.2 - (time - say_t)) / 0.4, 0.0, 1.0), font)
 
 	var hint := ""
 	if tool == "hammer":
@@ -1108,6 +1370,8 @@ func _draw() -> void:
 		hint = "Tap a piece to rotate it"
 	elif placements == 0 and mode == "classic":
 		hint = "Drag a piece onto the board"
+	elif placements < 2 and mode == "run" and raid:
+		hint = "Fill a line through a hero to squash him"
 	if hint != "":
 		draw_string(font, Vector2(area.position.x, tray_y + tray_h + cell * 0.1), hint, HORIZONTAL_ALIGNMENT_CENTER,
 			area.size.x, int(cell * 0.4), Color(0.88, 0.85, 1.0, 0.85))
@@ -1149,6 +1413,34 @@ func _draw_blocks() -> void:
 			BlockArt.draw_gem(self, c, cell * sc, time)
 		if ice[i] > 0:
 			BlockArt.draw_ice(self, c, cell, ice[i])
+
+
+func _draw_heroes() -> void:
+	for h in heroes:
+		var c := _cell_center(float(h["px"]), float(h["py"]))
+		var i := int(h["y"]) * N + int(h["x"])
+		var doomed := preview_hl.has(i)
+		if doomed:
+			sb_glow.bg_color = Color(1.0, 0.3, 0.3, 0.35 + 0.1 * sin(time * 12.0))
+			draw_style_box(sb_glow, Rect2(c - Vector2.ONE * cell * 0.44, Vector2.ONE * cell * 0.88))
+		var bob := sin(time * 5.5 + float(h["bob"])) * cell * 0.03
+		var walking := absf(float(h["py"]) - float(h["y"])) + absf(float(h["px"]) - float(h["x"])) > 0.05
+		var fx := -1.0 if int(h["x"]) >= N / 2 else 1.0
+		FmmArt.draw_hero(self, _look(h), c + Vector2(0, cell * 0.06 + bob), cell / 46.0, time + float(h["bob"]), 1.0 if doomed else 0.0, 0.0, fx, 0.6 if walking else 0.0)
+		var hp := int(h["hp"])
+		if hp > 1:
+			for k in hp:
+				var pp := c + Vector2(-cell * 0.1 * (hp - 1) + k * cell * 0.2, -cell * 0.46)
+				draw_circle(pp, cell * 0.075, HeroArt.OUT)
+				draw_circle(pp, cell * 0.055, GOLD)
+
+
+func _draw_yelp(t: String, pos: Vector2) -> void:
+	var fs := int(cell * 0.36)
+	var w := 1200.0
+	var base := pos + Vector2(-w / 2.0, fs * 0.35)
+	draw_string_outline(font, base, t, HORIZONTAL_ALIGNMENT_CENTER, w, fs, maxi(4, fs / 4), HeroArt.OUT)
+	draw_string(font, base, t, HORIZONTAL_ALIGNMENT_CENTER, w, fs, Color.WHITE)
 
 
 func _draw_crumble() -> void:

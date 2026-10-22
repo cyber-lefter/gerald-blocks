@@ -23,36 +23,34 @@ static func ensure() -> void:
 	var s := 96
 	var base := Image.create(s, s, false, Image.FORMAT_RGBA8)
 	var gloss := Image.create(s, s, false, Image.FORMAT_RGBA8)
-	var inset := s * 0.045
+	# Five More Minutes look: an ink outline around three flat cel tones (shadow, band, light),
+	# each tone a smaller copy of the block nudged up and left, plus one hard white highlight.
+	var inset := s * 0.04
 	var w := s - 2.0 * inset
 	var r := s * 0.2
-	var face_h := w - s * 0.1
-	var gx := inset + s * 0.09
-	var gy := inset + s * 0.06
-	var gw := w - s * 0.18
-	var gh := w * 0.4
+	var ink_w := s * 0.075
 	for y in s:
 		for x in s:
 			var px := x + 0.5
 			var py := y + 0.5
-			var outer := clampf(0.5 - _rr(px, py, inset, inset, w, w, r), 0.0, 1.0)
+			var d_out := _rr(px, py, inset, inset, w, w, r)
+			var outer := clampf(0.5 - d_out, 0.0, 1.0)
 			if outer <= 0.0:
 				base.set_pixel(x, y, Color(0, 0, 0, 0))
 				gloss.set_pixel(x, y, Color(0, 0, 0, 0))
 				continue
-			var face := clampf(0.5 - _rr(px, py, inset, inset, w, face_h, r), 0.0, 1.0)
-			var t := clampf((py - inset) / face_h, 0.0, 1.0)
-			# Lit face fading down, a darker lip at the bottom, and a thin bright rim along the face edge.
-			var v := lerpf(0.42, lerpf(1.0, 0.7, t), face)
-			var rim := clampf(1.0 - absf(_rr(px, py, inset, inset, w, face_h, r) + 2.5) / 2.0, 0.0, 1.0)
-			v = minf(1.0, v + rim * 0.18 * (1.0 - t))
+			var fill := clampf(0.5 - (d_out + ink_w), 0.0, 1.0)
+			var v := lerpf(0.06, 0.52, fill)
+			var bw := w - ink_w * 2.0
+			var b0 := inset + ink_w
+			var band := clampf(0.5 - _rr(px, py, b0 - s * 0.02, b0 - s * 0.025, bw * 0.95, bw * 0.92, r * 0.8), 0.0, 1.0)
+			v = lerpf(v, 0.78, band * fill)
+			var lit := clampf(0.5 - _rr(px, py, b0 - s * 0.035, b0 - s * 0.045, bw * 0.86, bw * 0.8, r * 0.7), 0.0, 1.0)
+			v = lerpf(v, 1.0, lit * fill)
 			base.set_pixel(x, y, Color(v, v, v, outer))
-			var g := clampf(0.5 - _rr(px, py, gx, gy, gw, gh, r * 0.7), 0.0, 1.0)
-			var ga := g * 0.58 * (1.0 - clampf((py - gy) / gh, 0.0, 1.0))
-			var dx := (px - (inset + s * 0.25)) / (s * 0.075)
-			var dy := (py - (inset + s * 0.2)) / (s * 0.045)
-			if dx * dx + dy * dy < 1.0:
-				ga = maxf(ga, 0.75)
+			var hx := (px - (b0 + bw * 0.24)) / (s * 0.11)
+			var hy := (py - (b0 + bw * 0.2)) / (s * 0.06)
+			var ga := clampf((1.0 - (hx * hx + hy * hy)) * 6.0, 0.0, 1.0) * 0.85
 			gloss.set_pixel(x, y, Color(1, 1, 1, ga))
 	base_tex = ImageTexture.create_from_image(base)
 	gloss_tex = ImageTexture.create_from_image(gloss)

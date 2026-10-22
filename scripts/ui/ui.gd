@@ -2,7 +2,7 @@ class_name UI
 extends RefCounted
 ## Shared styling helpers: fonts, labels, chunky buttons, panels and number formatting.
 
-const INK := Color(0.08, 0.05, 0.2)
+const INK := Color("15100c")
 
 static var _font: Font
 
@@ -64,8 +64,10 @@ static func button(text: String, color: Color, size := 34, height := 96) -> Butt
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = states[state]
 		sb.set_corner_radius_all(26)
-		sb.border_color = color.darkened(0.38)
-		sb.border_width_bottom = 3 if state == "pressed" else 8
+		# Five More Minutes look: an ink outline all round, thicker underneath.
+		sb.border_color = INK
+		sb.set_border_width_all(4)
+		sb.border_width_bottom = 5 if state == "pressed" else 10
 		sb.content_margin_left = 20
 		sb.content_margin_right = 20
 		sb.content_margin_top = 10 if state != "pressed" else 15
@@ -121,9 +123,9 @@ static func panel_style(color: Color, radius := 32) -> StyleBoxFlat:
 
 
 static func card_style() -> StyleBoxFlat:
-	var sb := panel_style(Color("251f5c"), 40)
-	sb.border_color = Color(1, 1, 1, 0.08)
-	sb.set_border_width_all(2)
+	var sb := panel_style(Color("2a241c"), 40)
+	sb.border_color = INK
+	sb.set_border_width_all(5)
 	sb.shadow_color = Color(0, 0, 0, 0.45)
 	sb.shadow_size = 30
 	sb.content_margin_left = 36
