@@ -44,6 +44,7 @@ func _ready() -> void:
 			sounds[key] = load(BAKED_DIR + key + ".wav")
 	else:
 		synthesize()
+	synthesize_extra()
 	load_recorded()
 
 
@@ -58,7 +59,7 @@ func load_recorded() -> void:
 			sounds[key] = variants
 
 
-## Builds every sound in code. tests/smoke_test.gd bakes the results into res://sounds/.
+## Builds every sound in code (the baked copies in res://sounds/ were made from these).
 func synthesize() -> void:
 	# Each part is a dictionary; missing keys use the defaults in _make().
 	sounds["tap"] = _make([
@@ -101,6 +102,46 @@ func synthesize() -> void:
 	sounds["win"] = _make(win, 0.45)
 	for i in SCALE.size():
 		sounds["note%d" % i] = _make(_mallet(SCALE[i], 0.0, 0.3), 0.35)
+
+
+## Sounds added for the toad game (hero tricks, traps, legendaries). Short, so they're
+## always built in code at startup rather than baked.
+func synthesize_extra() -> void:
+	# An arrow: a quick airy swish with a falling whistle.
+	sounds["arrow"] = _make([
+		{"wave": "noise", "dur": 0.12, "vol": 0.22, "attack": 0.01, "decay": 22.0, "lp": 3500.0},
+		{"f": 1500.0, "f2": 700.0, "dur": 0.1, "vol": 0.07, "decay": 18.0, "lp": 3000.0},
+	], 0.1)
+	# A hex: two slightly detuned notes sliding down together, a little queasy.
+	sounds["hex"] = _make([
+		{"f": 440.0, "f2": 220.0, "dur": 0.45, "vol": 0.14, "attack": 0.02, "decay": 4.0, "lp": 1300.0},
+		{"f": 466.0, "f2": 233.0, "dur": 0.45, "vol": 0.12, "attack": 0.02, "decay": 4.0, "lp": 1300.0},
+	], 0.3)
+	# The Sticky Net: a soft rope swish and a pluck.
+	sounds["net"] = _make([
+		{"wave": "noise", "dur": 0.2, "vol": 0.18, "attack": 0.03, "decay": 12.0, "lp": 900.0},
+		{"f": 300.0, "f2": 240.0, "dur": 0.12, "vol": 0.18, "decay": 25.0, "delay": 0.08, "lp": 1500.0},
+	], 0.15)
+	# A hero boxed in: two dull thuds.
+	sounds["trap"] = _make([
+		{"f": 180.0, "f2": 120.0, "dur": 0.12, "vol": 0.4, "decay": 30.0, "lp": 800.0},
+		{"f": 160.0, "f2": 100.0, "dur": 0.14, "vol": 0.4, "decay": 26.0, "delay": 0.09, "lp": 800.0},
+	], 0.12)
+	# The Gargoyle flinging a hero back up: a springy boing.
+	sounds["fling"] = _make([
+		{"f": 180.0, "f2": 720.0, "dur": 0.28, "vol": 0.24, "attack": 0.004, "decay": 7.0, "lp": 2000.0},
+	], 0.2)
+	# A boss walks in: a low horn with a fifth on top.
+	sounds["boss"] = _make([
+		{"f": 110.0, "f2": 98.0, "dur": 0.7, "vol": 0.32, "attack": 0.06, "decay": 3.0, "lp": 600.0},
+		{"f": 165.0, "f2": 147.0, "dur": 0.7, "vol": 0.18, "attack": 0.08, "decay": 3.0, "lp": 700.0},
+	], 0.35)
+	# A legendary in the drop: a bright rising arpeggio with a shimmer.
+	var legend: Array = []
+	for k in 5:
+		legend += _mallet([523.25, 659.25, 783.99, 1046.5, 1318.51][k], k * 0.07, 0.22)
+	legend.append({"wave": "noise", "dur": 0.6, "vol": 0.04, "attack": 0.2, "decay": 4.0, "lp": 6000.0, "delay": 0.1})
+	sounds["legend"] = _make(legend, 0.45)
 
 
 ## Marimba-like note: a round fundamental plus a quickly fading overtone near 4x, as a wooden bar has.

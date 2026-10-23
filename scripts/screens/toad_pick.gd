@@ -162,6 +162,11 @@ class Poster extends Control:
 			var col := GOLD if real and open else CREAM
 			var tl := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, lw, fs)
 			var pos := spot - Vector2(lw / 2.0, tl.y / 2.0 - fs)
+			if not real and open:
+				# The silly line's little drawing, just above it.
+				var pr := fs * 2.0 * a
+				if pr > 1.0:
+					ToadProps.draw(self, str(guide["props"][k - 1]), spot - Vector2(0, tl.y / 2.0 + pr * 0.95), pr, t + k)
 			draw_multiline_string_outline(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, lw, fs, -1, 8, Color(FmmArt.INK, a))
 			draw_multiline_string(font, pos, text, HORIZONTAL_ALIGNMENT_CENTER, lw, fs, -1, Color(col, a))
 			if real and open:

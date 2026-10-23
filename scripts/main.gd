@@ -29,21 +29,6 @@ func show_menu() -> void:
 	_swap(MainMenu.new())
 
 
-func show_island() -> void:
-	_swap(IslandMap.new())
-
-
-## Opens the level grid of a region; by default the one holding the furthest unlocked level.
-func show_levels(region := -1) -> void:
-	var ls := LevelSelect.new()
-	ls.region = region if region >= 0 else Levels.region_of(Save.unlocked())
-	_swap(ls)
-
-
-func show_shop() -> void:
-	_swap(ShopScreen.new())
-
-
 func show_run_shop() -> void:
 	_swap(RunShop.new())
 
@@ -68,10 +53,9 @@ func show_credits() -> void:
 	_swap(CreditsScreen.new())
 
 
-func start_game(mode: String, level := 0) -> void:
+func start_game(mode: String) -> void:
 	var g := GameScreen.new()
 	g.mode = mode
-	g.level_n = level
 	_swap(g)
 
 

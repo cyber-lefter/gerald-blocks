@@ -26,7 +26,7 @@ const SPARK_STYLE := {"midnight": "star", "sunset": "petal", "ocean": "bubble", 
 ## Shared with the backdrop so the whole screen joins in during fever.
 static var fever_amount := 0.0
 
-var mode := "classic"
+var mode := "run"
 var level: Dictionary = {}
 var palette: Array = []
 ## Paint Goblin's lucky colour this round (palette index), or -1.
@@ -185,18 +185,7 @@ func setup(p_mode: String, p_level: Dictionary) -> void:
 	ice.fill(0)
 	pop.resize(N * N)
 	pop.fill(-9.0)
-	if mode == "daily":
-		dealer.rng.seed = hash("prism-daily-" + Save.today())
-	else:
-		dealer.rng.randomize()
-	if mode == "adventure":
-		dealer.base = level["base"]
-		dealer.ramp = 0.2
-		for c in level["cells"]:
-			var i: int = c["i"]
-			color[i] = STONE if c["kind"] == "stone" else int(c["color"]) + 1
-			kind[i] = KIND_GEM if c["kind"] == "gem" else KIND_NORMAL
-			ice[i] = int(c["ice"])
+	dealer.rng.randomize()
 	if mode == "run":
 		round_n = Run.round_n
 		target = Run.target(round_n)
@@ -331,7 +320,7 @@ func _cell_at(p: Vector2) -> Vector2i:
 
 
 func _goal_type() -> String:
-	return str(level.get("type", "")) if mode == "adventure" else ""
+	return ""
 
 
 ## Score the HUD should show: points still flying as orbs aren't counted yet.
@@ -386,7 +375,7 @@ func _deal() -> void:
 		var tmp = order[i]
 		order[i] = order[j]
 		order[j] = tmp
-	var bombs: bool = level.get("bombs", false) if mode == "adventure" else (score >= 400 and mode != "run")
+	var bombs: bool = score >= 400 and mode == "squash"
 	for i in 3:
 		if mode == "run" and i >= pieces_left:
 			# The last tray of a round only holds the pieces still left in the budget.
@@ -951,9 +940,6 @@ func _destroy(hit: Dictionary, origin: Vector2) -> Dictionary:
 		var is_gem := kind[i] == KIND_GEM
 		if is_gem:
 			gems += 1
-			if mode == "adventure":
-				orbs.append({"from": _cell_center(x, y), "ctrl": _cell_center(x, y) + Vector2(randf_range(-2, 2), -3) * cell,
-					"t0": time + 0.25 + delay, "dur": 0.7, "value": 0, "target": "goal", "color": Color(0.55, 0.95, 1.0)})
 		dying.append({"x": x, "y": y, "color": _color_of(i), "t0": time + delay, "spawned": false, "gem": is_gem})
 		color[i] = 0
 		kind[i] = KIND_NORMAL
@@ -1025,18 +1011,6 @@ func _after_move() -> void:
 	if lair():
 		_after_run_move()
 		return
-	if mode == "adventure":
-		if _goal_type() == "score":
-			goal_current = score
-		goal_changed.emit(goal_current, int(level["target"]))
-		if goal_current >= int(level["target"]):
-			over = true
-			drag = {}
-			tool = ""
-			pending_finish = {"at": time + 1.0, "won": true}
-			Sfx.play("win")
-			Sfx.vibrate(80, true, 1.0)
-			return
 	var empty := true
 	for p in tray:
 		if p != null:
@@ -1046,8 +1020,6 @@ func _after_move() -> void:
 	_check_over()
 
 
-## A boss round with the goal reached plays on (bonus time) while the boss is on the board and
-## pieces are left: squashing him drops a rare monster. Otherwise the round ends as a win.
 ## Squash mode bosses: the first comes at 40 pieces, the second 30 later, then one every 20.
 ## Returns which boss (0, 1, 2...) arrives at piece n, or -1 if none does.
 static func _squash_boss_no(n: int) -> int:
@@ -1058,6 +1030,8 @@ static func _squash_boss_no(n: int) -> int:
 	return -1
 
 
+## A boss round with the goal reached plays on (bonus time) while the boss is on the board and
+## pieces are left: squashing him drops a rare monster. Otherwise the round ends as a win.
 func _boss_chase() -> bool:
 	if not boss_round or boss_beaten:
 		return false
@@ -1277,7 +1251,7 @@ func _spawn_boss(t: String) -> void:
 		"px": float(x), "py": -1.2, "bob": randf() * 6.0, "moves": 0, "boss": true})
 	next_hero_id += 1
 	_text(str(HERO_TYPES[t]["name"]) + "!", _cell_center(3.5, 1.0), cell * 0.7, true)
-	Sfx.play("bomb", 0.5)
+	Sfx.play("boss")
 
 
 ## Each hero walks toward the bed: straight down when free, sideways around blocks, or waits.
@@ -1333,6 +1307,7 @@ func _check_stuck(h: Dictionary) -> void:
 	h["stuck"] = now
 	if now and not was:
 		_text("Stuck!", _cell_center(float(x), float(y)) - Vector2(0, cell * 0.6), cell * 0.45, true)
+		Sfx.play("trap")
 
 
 func _hero_near_bed() -> bool:
@@ -1363,7 +1338,7 @@ func _reach_bed(h: Dictionary) -> void:
 			_text("FLUNG!", from - Vector2(0, cell * 0.5), cell * 0.7, true)
 			_joker_pop("gargoyle", "fling!")
 			_show_joker_pops()
-			Sfx.play("bomb", 1.2)
+			Sfx.play("fling")
 			return
 	heroes.erase(h)
 	var lost := 2 if h["type"] == "bomber" or h.get("boss", false) else 1
@@ -1590,7 +1565,7 @@ func _shoot_below(hx: int, hy: int, c: Vector2) -> void:
 		ice[i] = 0
 		_text("Thwip!", c - Vector2(0, cell * 0.6), cell * 0.45, true)
 		_burst(_cell_center(float(hx), float(y)), Color("3fa094"), 8)
-		Sfx.play("drop", 1.5)
+		Sfx.play("arrow")
 		return
 
 
@@ -1626,7 +1601,7 @@ func _hex_piece(c: Vector2) -> void:
 	tray_pop[k] = time
 	_text("Hexed!", _slot_center(k) - Vector2(0, cell * 0.8), cell * 0.6, true)
 	_text("Hex!", c - Vector2(0, cell * 0.6), cell * 0.45, true)
-	Sfx.play("power", 0.7)
+	Sfx.play("hex")
 	_check_over()
 
 
@@ -1750,7 +1725,7 @@ func _net_hero(c: Vector2i) -> void:
 	var p := _cell_center(float(c.x), float(c.y))
 	_text("Caught!", p - Vector2(0, cell * 0.6), cell * 0.6, true)
 	say(["Stay. Good hero.", "Gotcha.", "Not so fast."])
-	Sfx.play("pick", 0.7)
+	Sfx.play("net")
 	tool = ""
 	tool_used.emit("net")
 	_update_near_lines()
@@ -1828,8 +1803,6 @@ func use_undo() -> bool:
 	Sfx.vibrate(20, false, 0.5)
 	_update_near_lines()
 	score_changed.emit(score, streak)
-	if mode == "adventure":
-		goal_changed.emit(goal_current, int(level["target"]))
 	return true
 
 
@@ -2194,8 +2167,6 @@ func _draw() -> void:
 		hint = "Tap a hero to catch him in the net"
 	elif tool == "rotate":
 		hint = "Tap a piece to rotate it"
-	elif placements == 0 and mode == "classic":
-		hint = "Drag a piece onto the board"
 	elif placements < 2 and lair() and raid:
 		hint = "Fill a line through a hero to squash him"
 	if hint != "":

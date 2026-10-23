@@ -108,6 +108,13 @@ func _ready() -> void:
 	screen._refresh_snacks()
 	await _wait(0.6)
 	await _shot("run_heroes")
+	# Tapping a monster mid-round shows its card.
+	for n in screen.find_children("*", "", true, false):
+		if n.has_method("_draw_card"):
+			n.info_k = 1
+			n.info_t = n.t
+	await _wait(0.3)
+	await _shot("run_monster_card")
 
 	view.end_reason = "woke"
 	view.angry_t = view.time
@@ -174,6 +181,16 @@ func _ready() -> void:
 	router.current._flip(3)
 	await _wait(0.8)
 	await _shot("toad_pick_locked")
+	# Every poster with its drawings: unlock all the toads for a moment.
+	var keep_stats: Dictionary = Meta.data()["stats"].duplicate()
+	for stat_id in ["rounds_won", "wins", "squashed", "shinies", "bosses"]:
+		Meta.data()["stats"][stat_id] = 99999
+	router.show_toad_pick()
+	for k in Meta.TOADS.size():
+		await _wait(0.8)
+		await _shot("toad_poster_%d" % k)
+		router.current._flip(1)
+	Meta.data()["stats"] = keep_stats
 	router.show_wardrobe()
 	await _wait(0.6)
 	await _shot("wardrobe")

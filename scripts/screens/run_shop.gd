@@ -14,7 +14,16 @@ var c_gold := Color("f0d060")
 var c_buy := Color("a0603a")
 
 
+## The first shop visit ever shows a short tip (kept while this shop is open).
+var shop_tip := false
+
+
 func _ready() -> void:
+	shop_tip = Meta.tip_once("shop")
+	for o in Run.sack:
+		if Jokers.rarity(o) == Jokers.LEGENDARY:
+			Sfx.play_later("legend", 0.3)
+			break
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if Run.offers.is_empty():
 		open_shop()
@@ -114,6 +123,8 @@ func _rebuild() -> void:
 		return
 
 	list.add_child(_heading("For sale"))
+	if shop_tip:
+		list.add_child(_note("Tip: monsters stay for the whole run. Buy one you already have to level it up. Totems level up a kind of clear, forever."))
 	var any := false
 	for k in Run.offers.size():
 		var offer: String = Run.offers[k]

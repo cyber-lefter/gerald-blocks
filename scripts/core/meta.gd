@@ -31,22 +31,29 @@ const TOADS := {
 }
 
 ## The toad picker's poster for each toad: "A Guide to <x>maxxing", its real perk in a few words,
-## and five things that are true about him but do nothing.
+## and five things that are true about him but do nothing, each with a little drawing (ToadProps).
 const TOAD_GUIDE := {
 	"bog": {"maxx": "Bogmaxxing", "perk": "No tricks. Just vibes",
-		"silly": ["Sleep in a Puddle", "Own One (1) Pillow", "Eat Whatever Flies By", "Never Seen the Sun", "Snore Respectfully"]},
+		"silly": ["Sleep in a Puddle", "Own One (1) Pillow", "Eat Whatever Flies By", "Never Seen the Sun", "Snore Respectfully"],
+		"props": ["puddle", "pillow", "fly", "no_sun", "zzz"]},
 	"rich": {"maxx": "Richmaxxing", "perk": "Start with 12 gold",
-		"silly": ["Own a Tiny Monocle", "Never Pay Rent", "Tip in Flies", "Sleep on a Pile of Coins", "Call the Shop \"Cute\""]},
+		"silly": ["Own a Tiny Monocle", "Never Pay Rent", "Tip in Flies", "Sleep on a Pile of Coins", "Call the Shop \"Cute\""],
+		"props": ["monocle", "no_rent", "fly_tip", "coins", "heart"]},
 	"big": {"maxx": "Bellymaxxing", "perk": "Room for 5 monsters",
-		"silly": ["Second Breakfast, Always", "Sit on the Good Chair", "Belly Has Its Own Weather", "Hug Everyone at Once", "Never Skip Dessert"]},
+		"silly": ["Second Breakfast, Always", "Sit on the Good Chair", "Belly Has Its Own Weather", "Hug Everyone at Once", "Never Skip Dessert"],
+		"props": ["breakfast", "chair", "weather", "hearts", "cake"]},
 	"sleepy": {"maxx": "Snoozemaxxing", "perk": "4 naps instead of 3",
-		"silly": ["Five More Minutes, Always", "Snore in Three Keys", "Have a Favourite Pillow", "Woke Up Once (2019)", "Refuse to Leave the Nest"]},
+		"silly": ["Five More Minutes, Always", "Snore in Three Keys", "Have a Favourite Pillow", "Woke Up Once (2019)", "Refuse to Leave the Nest"],
+		"props": ["alarm", "notes", "fav_pillow", "calendar", "nest"]},
 	"shiny": {"maxx": "Shinymaxxing", "perk": "Shiny monsters 3x as often",
-		"silly": ["Polish Self Daily", "Collect Shiny Rocks", "Blind the Heroes", "Own a Mirror (Several)", "Sparkle Unprompted"]},
+		"silly": ["Polish Self Daily", "Collect Shiny Rocks", "Blind the Heroes", "Own a Mirror (Several)", "Sparkle Unprompted"],
+		"props": ["polish", "gems", "blind", "mirrors", "sparkles"]},
 	"old": {"maxx": "Eldermaxxing", "perk": "Every totem starts at Lv 1",
-		"silly": ["Remember the Old Bog", "Yell at Clouds", "Know a Guy (He's a Rock)", "Carve Totems for Fun", "Nap at 4 PM Sharp"]},
+		"silly": ["Remember the Old Bog", "Yell at Clouds", "Know a Guy (He's a Rock)", "Carve Totems for Fun", "Nap at 4 PM Sharp"],
+		"props": ["frame", "angry_cloud", "rock_guy", "totem", "clock4"]},
 	"hungry": {"maxx": "Snackmaxxing", "perk": "The shop shows 4 monsters",
-		"silly": ["Lick Every Block", "Eat the Menu Too", "Midnight Snack at Noon", "Have Opinions on Flies", "Licked a Hero Once"]},
+		"silly": ["Lick Every Block", "Eat the Menu Too", "Midnight Snack at Noon", "Have Opinions on Flies", "Licked a Hero Once"],
+		"props": ["lick_block", "menu", "moon_sun", "fly_opinion", "helmet"]},
 }
 
 ## Hats for the toad (wardrobe). Looks only.
@@ -156,6 +163,16 @@ static func mark_seen(id: String) -> void:
 
 static func is_seen(id: String) -> bool:
 	return data()["seen"].has(id)
+
+
+## True the first time a tip is asked for, then never again (first-run tutorial tips).
+static func tip_once(id: String) -> bool:
+	var seen: Array = data().get("tips", [])
+	if seen.has(id):
+		return false
+	seen.append(id)
+	data()["tips"] = seen
+	return true
 
 
 ## Everything unlocked right now, as "Monster: Name" lines, so a run's end can show what's new.
