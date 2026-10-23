@@ -30,6 +30,25 @@ const TOADS := {
 	"hungry": {"name": "Hungry Toad", "desc": "The shop shows 4 monsters", "color": "b0584a", "req": ["wins", 1]},
 }
 
+## The toad picker's poster for each toad: "A Guide to <x>maxxing", its real perk in a few words,
+## and five things that are true about him but do nothing.
+const TOAD_GUIDE := {
+	"bog": {"maxx": "Bogmaxxing", "perk": "No tricks. Just vibes",
+		"silly": ["Sleep in a Puddle", "Own One (1) Pillow", "Eat Whatever Flies By", "Never Seen the Sun", "Snore Respectfully"]},
+	"rich": {"maxx": "Richmaxxing", "perk": "Start with 12 gold",
+		"silly": ["Own a Tiny Monocle", "Never Pay Rent", "Tip in Flies", "Sleep on a Pile of Coins", "Call the Shop \"Cute\""]},
+	"big": {"maxx": "Bellymaxxing", "perk": "Room for 5 monsters",
+		"silly": ["Second Breakfast, Always", "Sit on the Good Chair", "Belly Has Its Own Weather", "Hug Everyone at Once", "Never Skip Dessert"]},
+	"sleepy": {"maxx": "Snoozemaxxing", "perk": "4 naps instead of 3",
+		"silly": ["Five More Minutes, Always", "Snore in Three Keys", "Have a Favourite Pillow", "Woke Up Once (2019)", "Refuse to Leave the Nest"]},
+	"shiny": {"maxx": "Shinymaxxing", "perk": "Shiny monsters 3x as often",
+		"silly": ["Polish Self Daily", "Collect Shiny Rocks", "Blind the Heroes", "Own a Mirror (Several)", "Sparkle Unprompted"]},
+	"old": {"maxx": "Eldermaxxing", "perk": "Every totem starts at Lv 1",
+		"silly": ["Remember the Old Bog", "Yell at Clouds", "Know a Guy (He's a Rock)", "Carve Totems for Fun", "Nap at 4 PM Sharp"]},
+	"hungry": {"maxx": "Snackmaxxing", "perk": "The shop shows 4 monsters",
+		"silly": ["Lick Every Block", "Eat the Menu Too", "Midnight Snack at Noon", "Have Opinions on Flies", "Licked a Hero Once"]},
+}
+
 ## Hats for the toad (wardrobe). Looks only.
 const HATS := {
 	"none": {"name": "No hat", "req": []},

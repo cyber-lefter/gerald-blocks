@@ -134,8 +134,14 @@ func _ready() -> void:
 	await _wait(0.6)
 	await _shot("menu_hat")
 	router.show_toad_pick()
-	await _wait(0.6)
+	await _wait(0.8)
 	await _shot("toad_pick")
+	router.current._flip(1)
+	await _wait(0.8)
+	await _shot("toad_pick2")
+	router.current._flip(3)
+	await _wait(0.8)
+	await _shot("toad_pick_locked")
 	router.show_wardrobe()
 	await _wait(0.6)
 	await _shot("wardrobe")
@@ -165,6 +171,19 @@ func _ready() -> void:
 	img = img.get_region(Rect2i((img.get_width() - side) / 2, (img.get_height() - side) / 2, side, side))
 	img.resize(512, 512, Image.INTERPOLATE_LANCZOS)
 	img.save_png(ProjectSettings.globalize_path("res://icon.png"))
+	icon.queue_free()
+
+	# Boot splash: the same toad and blocks with a small "by BDS Labs", saved as res://splash.png.
+	var splash := SplashArt.new()
+	get_tree().root.add_child(splash)
+	splash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	await _wait(0.2)
+	await RenderingServer.frame_post_draw
+	img = get_viewport().get_texture().get_image()
+	var sw := img.get_width()
+	img = img.get_region(Rect2i(0, (img.get_height() - sw) / 2, sw, sw))
+	img.resize(600, 600, Image.INTERPOLATE_LANCZOS)
+	img.save_png(ProjectSettings.globalize_path("res://splash.png"))
 	get_tree().quit()
 
 
@@ -180,6 +199,20 @@ class ItemSheet extends Control:
 			var c := Vector2((k % cols + 0.5) * w, 50 + (k / cols) * h)
 			Jokers.draw_icon(self, ids[k], c, 30, 0.5)
 			draw_string(font, c + Vector2(-w / 2, 46), str(Jokers.info(ids[k])["name"]), HORIZONTAL_ALIGNMENT_CENTER, w, 15, Color.WHITE)
+
+
+class SplashArt extends Control:
+	func _draw() -> void:
+		var side := size.x
+		var c := size / 2.0 + Vector2(0, -side * 0.08)
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.165, 0.133, 0.098))
+		var pal: Array = Themes.get_theme("lair")["blocks"]
+		var u := side / 10.0
+		for i in 3:
+			BlockArt.draw_block(self, pal[[0, 2, 4][i]], c + Vector2((i - 1) * u * 1.04, -u * 2.6), u)
+		FmmArt.draw_nest(self, c + Vector2(0, u * 1.5), u * 3.4, u * 1.1)
+		FmmArt.draw_toad(self, c + Vector2(0, u * 0.6), u * 2.6 / 110.0, 0.3, "nap")
+		draw_string(UI.display_font(), Vector2(0, c.y + u * 3.6), "by BDS Labs", HORIZONTAL_ALIGNMENT_CENTER, side, int(u * 0.55), Color(1, 1, 1, 0.55))
 
 
 class IconArt extends Control:

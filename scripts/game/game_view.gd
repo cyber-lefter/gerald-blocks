@@ -242,10 +242,17 @@ func set_area(r: Rect2) -> void:
 	var pad := cell * 0.2
 	var bs := cell * N + pad * 2.0
 	var used := bs + cell * 0.3 + cell * 3.1 + cell * bed
+	# Spare height (tall phones) goes to the toad's strip, so all of him and his hat fit
+	# without the board getting any smaller.
+	var bed_extra := 0.0
+	if lair():
+		bed_extra = clampf((h - 20.0 - used) / cell * 0.9, 0.0, 1.0)
+		bed += bed_extra
+		used += cell * bed_extra
 	var top := r.position.y + maxf(6.0, (h - used) * 0.4)
 	board_rect = Rect2(r.position.x + (w - bs) / 2.0, top, bs, bs)
 	inner = board_rect.position + Vector2(pad, pad)
-	bed_rect = Rect2(board_rect.position.x, board_rect.end.y + cell * 0.15, bs, cell * 1.35)
+	bed_rect = Rect2(board_rect.position.x, board_rect.end.y + cell * 0.15, bs, cell * (1.35 + bed_extra))
 	tray_y = board_rect.end.y + cell * 0.3 + cell * bed
 	tray_h = cell * 3.1
 	tray_size = minf(cell * 0.56, (w / 3.0 * 0.86) / 5.0)

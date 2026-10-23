@@ -15,7 +15,7 @@ static func kind_for(type: String) -> int:
 	return KINDS.get(type, KINDS["squire"]).pick_random()
 
 
-## Drawn behind the board, so the toad's head tucks under its bottom edge.
+## The toad's strip between the board and the tray: floor, nest, the toad (skin and hat) and his naps.
 static func draw_bed(ci: CanvasItem, r: Rect2, cell: float, t: float, mood: String, naps: int, font: Font, max_naps := 3,
 		skin := FmmArt.TOAD, hat := "") -> void:
 	var lw := maxf(2.0, cell * 0.05)
@@ -25,18 +25,20 @@ static func draw_bed(ci: CanvasItem, r: Rect2, cell: float, t: float, mood: Stri
 	floor_sb.border_color = OUT
 	floor_sb.set_border_width_all(int(lw))
 	ci.draw_style_box(floor_sb, r)
-	var h := r.size.y
-	FmmArt.draw_nest(ci, r.position + Vector2(cell * 2.0, h * 0.62), cell * 1.9, h * 0.36)
-	var s := h * 1.15 / 165.0
+	# The toad sits at the bottom of the strip at a fixed size; a taller strip (tall phones) just
+	# gives his head and hat room above him.
+	var toad := Vector2(r.position.x + cell * 2.0, r.end.y - cell * 0.78)
+	FmmArt.draw_nest(ci, toad + Vector2(0, cell * 0.27), cell * 1.9, cell * 0.49)
+	var s := cell * 1.35 * 1.15 / 165.0
 	var wob := 1.0 if mood == "angry" else 0.0
-	FmmArt.draw_toad(ci, r.position + Vector2(cell * 2.0, h * 0.42), s, t, mood, Vector2(0.6, -0.4), wob, skin, hat)
+	FmmArt.draw_toad(ci, toad, s, t, mood, Vector2(0.6, -0.4), wob, skin, hat)
 	if mood == "nap":
 		var zk := fmod(t * 0.6, 1.0)
-		ci.draw_string(font, r.position + Vector2(cell * (3.1 + zk * 0.4), h * (0.3 - zk * 0.5)), "z", HORIZONTAL_ALIGNMENT_LEFT, -1,
+		ci.draw_string(font, toad + Vector2(cell * (1.1 + zk * 0.4), -cell * (0.16 + zk * 0.68)), "z", HORIZONTAL_ALIGNMENT_LEFT, -1,
 			int(cell * (0.3 + 0.18 * zk)), Color(CREAM, 0.85 * (1.0 - zk)))
 	# Naps left this run: a row of little pillows on the right.
 	for i in max_naps:
-		var p := r.end - Vector2(cell * (0.55 + 0.75 * i), h * 0.5)
+		var p := r.end - Vector2(cell * (0.55 + 0.75 * i), cell * 0.67)
 		var pts := FmmArt.blobp(p, cell * 0.3, cell * 0.2, 10, 3 + i, 0.08)
 		if i < naps:
 			FmmArt.cel(ci, pts, p, FmmArt.PILLOW, Color("b89ab0"), Color("5a4a5a"), lw * 0.8, cell * 0.06)
@@ -51,11 +53,10 @@ static func draw_bubble(ci: CanvasItem, r: Rect2, cell: float, say: String, a: f
 	if say == "" or a <= 0.0:
 		return
 	var lw := maxf(2.0, cell * 0.05)
-	var h := r.size.y
 	var fs := int(cell * 0.32)
 	var tw := font.get_string_size(say, HORIZONTAL_ALIGNMENT_LEFT, -1, fs).x
 	var bw := minf(r.size.x - cell * 3.4, tw + cell * 0.5)
-	var bubble := Rect2(r.position + Vector2(cell * 3.3, h * 0.08), Vector2(bw, h * 0.5))
+	var bubble := Rect2(Vector2(r.position.x + cell * 3.3, r.end.y - cell * 1.24), Vector2(bw, cell * 0.68))
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(CREAM, a)
 	sb.set_corner_radius_all(int(cell * 0.2))
