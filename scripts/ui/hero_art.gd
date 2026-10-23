@@ -6,7 +6,7 @@ extends RefCounted
 const OUT := FmmArt.INK
 const CREAM := FmmArt.C_TEXT
 ## Hero types (rules) to the FMM kinds that play them. Plain one-hit heroes come in two looks; the fast one is a dog.
-const KINDS := {"squire": [FmmArt.ARCHER, FmmArt.BARD], "elf": [FmmArt.DOG], "knight": [FmmArt.TANK],
+const KINDS := {"squire": [FmmArt.TANK], "archer": [FmmArt.ARCHER], "bard": [FmmArt.BARD], "hexer": [FmmArt.MAGE], "elf": [FmmArt.DOG], "knight": [FmmArt.TANK],
 	"paladin": [FmmArt.PALADIN], "bomber": [FmmArt.BOMBER], "healer": [FmmArt.HEALER], "thief": [FmmArt.ROGUE], "mage": [FmmArt.MAGE],
 	"boss_thief": [FmmArt.ROGUE], "boss_wizard": [FmmArt.MAGE], "boss_champion": [FmmArt.PALADIN]}
 

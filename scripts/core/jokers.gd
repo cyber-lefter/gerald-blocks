@@ -188,6 +188,7 @@ const SNACKS := {
 	"brew": {"name": "Bog Brew", "desc": "Clears the fullest row, heroes and all", "price": 3, "color": "6a9a4a", "icon": "bottle"},
 	"stir": {"name": "Stir Stick", "desc": "Swap the pieces in the tray for new ones", "price": 2, "color": "a07a50", "icon": "stick"},
 	"honey": {"name": "Honey Jar", "desc": "Your next clear scores x3", "price": 3, "color": "e0a040", "icon": "jar"},
+	"net": {"name": "Sticky Net", "desc": "Tap a hero: he's stuck for 5 moves (and pays double)", "price": 3, "color": "c8c0a0", "icon": "net"},
 	"feather": {"name": "Feather Pillow", "desc": "+1 nap for the toad", "price": 3, "color": "e0d8e4", "icon": "feather"},
 }
 

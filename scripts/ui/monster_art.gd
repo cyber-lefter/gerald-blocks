@@ -534,6 +534,12 @@ static func draw_snack(ci: CanvasItem, icon: String, c: Vector2, r: float, col: 
 			var f := PackedVector2Array([Vector2(-30, 40), Vector2(-26, 0), Vector2(0, -36), Vector2(30, -44), Vector2(22, -12), Vector2(-6, 24)])
 			_fill(ci, f, col)
 			ci.draw_line(Vector2(-34, 46), Vector2(24, -38), INK, 4.0, true)
+		"net":
+			for k in 4:
+				var o := -18.0 + k * 12.0
+				ci.draw_line(Vector2(o, -24), Vector2(o + 6, 26), Color("c8c0a0"), 5.0, true)
+				ci.draw_line(Vector2(-26, o + 2), Vector2(26, o - 2), Color("c8c0a0"), 5.0, true)
+			ci.draw_arc(Vector2.ZERO, 30, 0, TAU, 24, INK, 5.0, true)
 		"sack":
 			var bag := PackedVector2Array([Vector2(-14, -30), Vector2(14, -30), Vector2(10, -22), Vector2(38, 4), Vector2(40, 30),
 				Vector2(24, 42), Vector2(-24, 42), Vector2(-40, 30), Vector2(-38, 4), Vector2(-10, -22)])

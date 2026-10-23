@@ -67,6 +67,8 @@ var tool := ""
 # Run mode: a score target within a piece budget; raid rounds send heroes down the board.
 const HERO_TYPES := {"squire": {"hp": 1, "steps": 1}, "elf": {"hp": 1, "steps": 2}, "knight": {"hp": 2, "steps": 1}, "paladin": {"hp": 3, "steps": 1},
 	"bomber": {"hp": 1, "steps": 1}, "healer": {"hp": 1, "steps": 1}, "thief": {"hp": 1, "steps": 1}, "mage": {"hp": 1, "steps": 1},
+	# Archers shoot away the block under them, bards hurry the heroes nearby, hexers curse a piece in the tray.
+	"archer": {"hp": 1, "steps": 1}, "bard": {"hp": 1, "steps": 1}, "hexer": {"hp": 2, "steps": 1},
 	# Bosses: big armour, walk every third piece, and each has a trick (see _hero_tricks).
 	"boss_thief": {"hp": 2, "steps": 1, "name": "The Master Thief", "trick": "Steals a piece every 3 moves"},
 	"boss_wizard": {"hp": 3, "steps": 1, "name": "The Grand Wizard", "trick": "Freezes two blocks every 2 moves"},
@@ -75,7 +77,7 @@ const G_BOSS := ["A champion. In MY room.", "That one's big. Squash him.", "Oh n
 const G_BOSS_DOWN := ["Ha! Flat champion.", "Who's the hero now?", "Now THAT was satisfying."]
 # Which heroes turn up, by night: [type, first night, weight].
 const HERO_TABLE := [["squire", 1, 60], ["elf", 1, 25], ["knight", 2, 25], ["mage", 2, 12], ["thief", 2, 12],
-	["healer", 3, 12], ["bomber", 3, 12], ["paladin", 4, 14]]
+	["healer", 3, 12], ["bomber", 3, 12], ["archer", 3, 12], ["paladin", 4, 14], ["bard", 4, 10], ["hexer", 5, 10]]
 const YELPS := ["MY HAT!", "Not the face!", "Tell my mum!", "I had a prophecy!", "AAAAA", "Worth it!", "Oof.", "Unfair!", "My sword!"]
 const PEEL := ["My armour!", "That was rented!", "Just a flesh wound."]
 const G_START := ["Mm. Five more minutes.", "Don't wake me. Score points.", "Quiet blocks only, please.", "I'm resting my eyes."]
@@ -444,6 +446,11 @@ func _press(p: Vector2) -> void:
 		var c := _cell_at(p)
 		if c.x >= 0 and not hero_at(c.x, c.y).is_empty():
 			_eat_hero(c)
+		return
+	if tool == "net":
+		var c := _cell_at(p)
+		if c.x >= 0 and not hero_at(c.x, c.y).is_empty():
+			_net_hero(c)
 		return
 	if tool == "pebble":
 		var c := _cell_at(p)
@@ -1281,26 +1288,51 @@ func _advance_heroes() -> void:
 		if not heroes.has(h):
 			continue
 		h["moves"] = int(h.get("moves", 0)) + 1
+		if int(h.get("net", 0)) > 0:
+			# Caught in the Sticky Net: he struggles and stays put.
+			h["net"] = int(h["net"]) - 1
+			h["stuck"] = true
+			continue
 		if h.get("boss", false) and int(h["moves"]) % 3 != 0:
 			continue
 		for s in int(HERO_TYPES[h["type"]]["steps"]):
-			var x: int = h["x"]
-			var y: int = h["y"]
-			if y == N - 1:
-				_reach_bed(h)
+			if not _step_hero(h):
 				break
-			if _walkable(x, y + 1):
-				h["y"] = y + 1
-				continue
-			var dirs := [-1, 1] if randf() < 0.5 else [1, -1]
-			var moved := false
-			for d in dirs:
-				if _walkable(x + d, y):
-					h["x"] = x + d
-					moved = true
-					break
-			if not moved:
-				break
+		_check_stuck(h)
+
+
+## One step toward the bed: down when free, otherwise sideways. False when he can't move
+## (or he reached the bed).
+func _step_hero(h: Dictionary) -> bool:
+	if not heroes.has(h):
+		return false
+	var x: int = h["x"]
+	var y: int = h["y"]
+	if y == N - 1:
+		_reach_bed(h)
+		return false
+	if _walkable(x, y + 1):
+		h["y"] = y + 1
+		return true
+	var dirs := [-1, 1] if randf() < 0.5 else [1, -1]
+	for d in dirs:
+		if _walkable(x + d, y):
+			h["x"] = x + d
+			return true
+	return false
+
+
+## A hero boxed in below and on both sides is stuck: no tricks, and squashing him pays double.
+func _check_stuck(h: Dictionary) -> void:
+	if not heroes.has(h):
+		return
+	var x: int = h["x"]
+	var y: int = h["y"]
+	var was: bool = h.get("stuck", false)
+	var now := y < N - 1 and not _walkable(x, y + 1) and not _walkable(x - 1, y) and not _walkable(x + 1, y)
+	h["stuck"] = now
+	if now and not was:
+		_text("Stuck!", _cell_center(float(x), float(y)) - Vector2(0, cell * 0.6), cell * 0.45, true)
 
 
 func _hero_near_bed() -> bool:
@@ -1370,7 +1402,10 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 			flyers.append({"look": _look(h), "p": c,
 				"v": Vector2(randf_range(-500, 500), randf_range(-1100, -700)) * cell / 60.0,
 				"r": 0.0, "vr": randf_range(-24, 24), "t0": time, "yelp": YELPS.pick_random()})
-			pts += _squash_bonus(int(60 * mult * k))
+			var trapped: bool = h.get("stuck", false)
+			pts += _squash_bonus(int(60 * mult * k * (2 if trapped else 1)))
+			if trapped:
+				_text("TRAPPED x2", c + Vector2(0, cell * 0.3), cell * 0.5, true, 0.1)
 			if h.get("boss", false):
 				pts += _boss_down(c)
 			if h["type"] == "bomber":
@@ -1478,10 +1513,21 @@ func _bomber_blast(x: int, y: int) -> int:
 ## After the heroes step: healers patch up neighbours, mages freeze a block, thieves pinch a piece.
 func _hero_tricks() -> void:
 	for h in heroes.duplicate():
+		if not heroes.has(h) or h.get("stuck", false):
+			continue
 		var hx: int = h["x"]
 		var hy: int = h["y"]
 		var c := _cell_center(float(hx), float(hy))
 		match str(h["type"]):
+			"archer":
+				if int(h["moves"]) % 3 == 0:
+					_shoot_below(hx, hy, c)
+			"bard":
+				if int(h["moves"]) % 4 == 0:
+					_hurry_near(h, c)
+			"hexer":
+				if int(h["moves"]) % 4 == 0:
+					_hex_piece(c)
 			"boss_thief":
 				if int(h["moves"]) % 3 == 0:
 					_steal_piece(c)
@@ -1530,6 +1576,60 @@ func _freeze_near(hx: int, hy: int, r: int, c: Vector2) -> void:
 
 
 ## A thief pinches a piece from the tray (it counts as used).
+## An archer's arrow: the first block straight below him is shot away.
+func _shoot_below(hx: int, hy: int, c: Vector2) -> void:
+	for y in range(hy + 1, N):
+		var i := y * N + hx
+		if color[i] == 0:
+			continue
+		if color[i] == STONE:
+			return
+		dying.append({"x": hx, "y": y, "color": _color_of(i), "t0": time + 0.05, "spawned": false, "gem": false})
+		color[i] = 0
+		kind[i] = KIND_NORMAL
+		ice[i] = 0
+		_text("Thwip!", c - Vector2(0, cell * 0.6), cell * 0.45, true)
+		_burst(_cell_center(float(hx), float(y)), Color("3fa094"), 8)
+		Sfx.play("drop", 1.5)
+		return
+
+
+## A bard's song: every other hero within 2 cells takes an extra step.
+func _hurry_near(b: Dictionary, c: Vector2) -> void:
+	var any := false
+	for o in heroes.duplicate():
+		if o == b or o.get("stuck", false) or absi(int(o["x"]) - int(b["x"])) > 2 or absi(int(o["y"]) - int(b["y"])) > 2:
+			continue
+		if _step_hero(o):
+			any = true
+	if any:
+		_text("♪ Hurry! ♪", c - Vector2(0, cell * 0.6), cell * 0.45, true)
+
+
+## A hexer's curse: one piece in the tray turns into a big awkward one.
+func _hex_piece(c: Vector2) -> void:
+	var full: Array = []
+	for k in 3:
+		if tray[k] != null:
+			full.append(k)
+	if full.is_empty():
+		return
+	var k: int = full.pick_random()
+	var big: Array = []
+	for sh in Shapes.all:
+		if int(sh["group"]) in [12, 13, 14]:
+			big.append(sh)
+	if big.is_empty():
+		return
+	tray[k]["shape"] = big.pick_random()
+	tray[k]["bomb"] = -1
+	tray_pop[k] = time
+	_text("Hexed!", _slot_center(k) - Vector2(0, cell * 0.8), cell * 0.6, true)
+	_text("Hex!", c - Vector2(0, cell * 0.6), cell * 0.45, true)
+	Sfx.play("power", 0.7)
+	_check_over()
+
+
 func _steal_piece(c: Vector2) -> void:
 	var full: Array = []
 	for k in 3:
@@ -1558,6 +1658,10 @@ func use_snack(id: String) -> bool:
 			tool = "tongue"
 		"pebble":
 			tool = "pebble"
+		"net":
+			if heroes.is_empty():
+				return false
+			tool = "net"
 		"slam":
 			if heroes.is_empty():
 				return false
@@ -1635,6 +1739,21 @@ func _brew() -> void:
 	_show_joker_pops()
 	score_changed.emit(score, streak)
 	_after_move()
+
+
+func _net_hero(c: Vector2i) -> void:
+	var h := hero_at(c.x, c.y)
+	if h.is_empty():
+		return
+	h["net"] = 5
+	h["stuck"] = true
+	var p := _cell_center(float(c.x), float(c.y))
+	_text("Caught!", p - Vector2(0, cell * 0.6), cell * 0.6, true)
+	say(["Stay. Good hero.", "Gotcha.", "Not so fast."])
+	Sfx.play("pick", 0.7)
+	tool = ""
+	tool_used.emit("net")
+	_update_near_lines()
 
 
 func _eat_hero(c: Vector2i) -> void:
@@ -2071,6 +2190,8 @@ func _draw() -> void:
 		hint = "Tap a block to smash it"
 	elif tool == "tongue":
 		hint = "Tap a hero for the toad to eat"
+	elif tool == "net":
+		hint = "Tap a hero to catch him in the net"
 	elif tool == "rotate":
 		hint = "Tap a piece to rotate it"
 	elif placements == 0 and mode == "classic":
@@ -2149,7 +2270,12 @@ func _draw_heroes() -> void:
 		if boss:
 			# A red glow under the boss so he reads as the big one.
 			draw_circle(c + Vector2(0, cell * 0.3), cell * 0.42, Color(0.75, 0.2, 0.15, 0.35))
-		FmmArt.draw_hero(self, _look(h), c + Vector2(0, cell * 0.06 + bob), hs, time + float(h["bob"]), 1.0 if doomed else 0.0, 0.0, fx, 0.6 if walking else 0.0)
+		if h["type"] == "hexer":
+			draw_circle(c + Vector2(0, cell * 0.3), cell * 0.36, Color(0.4, 0.8, 0.3, 0.3 + 0.1 * sin(time * 4.0)))
+		var stuck: bool = h.get("stuck", false)
+		FmmArt.draw_hero(self, _look(h), c + Vector2(0, cell * 0.06 + (0.0 if stuck else bob)), hs, time + float(h["bob"]), 1.0 if doomed else 0.0, 0.0, fx, 0.0 if stuck else (0.6 if walking else 0.0))
+		if stuck:
+			_draw_net(c, cell * 0.42, int(h.get("net", 0)) > 0)
 		if boss:
 			var cp := c + Vector2(0, -cell * 0.62 + bob)
 			var crown := PackedVector2Array([cp + Vector2(-0.2, 0.08) * cell, cp + Vector2(-0.22, -0.1) * cell, cp + Vector2(-0.1, -0.02) * cell,
@@ -2162,6 +2288,16 @@ func _draw_heroes() -> void:
 				var pp := c + Vector2(-cell * 0.1 * (hp - 1) + k * cell * 0.2, -cell * (0.8 if boss else 0.46))
 				draw_circle(pp, cell * 0.075, HeroArt.OUT)
 				draw_circle(pp, cell * 0.055, GOLD)
+
+
+## Criss-cross strands over a stuck hero: rope for the Sticky Net, vines when boxed in.
+func _draw_net(c: Vector2, r: float, rope: bool) -> void:
+	var col := Color("d8d0b0", 0.85) if rope else Color("6aa04a", 0.85)
+	var w := maxf(2.0, cell * 0.035)
+	for k in 3:
+		var o := (k - 1) * r * 0.6
+		draw_line(c + Vector2(o - r * 0.4, -r), c + Vector2(o + r * 0.4, r), col, w, true)
+		draw_line(c + Vector2(o + r * 0.4, -r), c + Vector2(o - r * 0.4, r), col, w, true)
 
 
 func _draw_yelp(t: String, pos: Vector2) -> void:

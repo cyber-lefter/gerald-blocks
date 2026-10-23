@@ -92,6 +92,23 @@ func _ready() -> void:
 	await _wait(0.5)
 	await _shot("run_squash2")
 
+	# The 0.4.6 heroes: an archer, a bard and a hexer, one hero boxed in and one in the Sticky Net.
+	view.heroes = []
+	view.color.fill(0)
+	for i in [33, 35, 41, 42, 43, 49, 50, 51, 52, 56, 57, 58, 59, 60, 61]:
+		view.color[i] = 1 + i % 8
+	for spec in [["archer", 5, 2], ["bard", 2, 1], ["hexer", 6, 5], ["squire", 1, 4], ["knight", 4, 3]]:
+		var t: String = spec[0]
+		view.heroes.append({"id": 0, "type": t, "kind": HeroArt.kind_for(t), "hp": int(GameView.HERO_TYPES[t]["hp"]),
+			"x": spec[1], "y": spec[2], "px": float(spec[1]), "py": float(spec[2]), "bob": randf() * 6.0, "moves": 0})
+	view.heroes[3]["stuck"] = true
+	view.heroes[4]["stuck"] = true
+	view.heroes[4]["net"] = 3
+	Run.snacks = ["net", "tongue"]
+	screen._refresh_snacks()
+	await _wait(0.6)
+	await _shot("run_heroes")
+
 	view.end_reason = "woke"
 	view.angry_t = view.time
 	Run.naps = 0

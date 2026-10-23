@@ -59,6 +59,9 @@ func _ready() -> void:
 					if view.tool == "tongue":
 						var h: Dictionary = view.heroes[0]
 						view._eat_hero(Vector2i(int(h["x"]), int(h["y"])))
+					elif view.tool == "net":
+						var h: Dictionary = view.heroes[0]
+						view._net_hero(Vector2i(int(h["x"]), int(h["y"])))
 					elif view.tool == "pebble":
 						for i in 64:
 							if view.color[i] != 0:
