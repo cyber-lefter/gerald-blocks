@@ -106,6 +106,11 @@ func _rebuild() -> void:
 			Run.store()
 			_rebuild())
 		list.add_child(skip)
+		if Run.jokers.size() >= Run.max_jokers():
+			# A full den shouldn't waste the pick: sell one here to make room.
+			list.add_child(_heading("Your den is full"))
+			list.add_child(_note("Sell a monster to make room, then take one above."))
+			_add_owned_monsters()
 		return
 
 	list.add_child(_heading("For sale"))
@@ -125,11 +130,7 @@ func _rebuild() -> void:
 	list.add_child(_heading("Your monsters (%d/%d)" % [Run.jokers.size(), Run.max_jokers()]))
 	if Run.jokers.is_empty():
 		list.add_child(_note("None yet. Monsters stay for the whole run. Buy one again to level it up."))
-	for id in Run.jokers.duplicate():
-		var jid: String = id
-		var e := str(Run.editions.get(jid, ""))
-		list.add_child(_row(jid if e == "" else "%s|%s" % [jid, e], _monster_title(jid, Run.level(jid)), _monster_tag(jid, e), _tag_color(jid, e),
-			_owned_desc(jid, e), "Sell +%d" % Run.sell_price(jid), c_panel, true, func() -> void: _sell(jid)))
+	_add_owned_monsters()
 
 	if not Run.totems.is_empty():
 		list.add_child(_heading("Your totems"))
@@ -149,6 +150,15 @@ func _rebuild() -> void:
 		list.add_child(_heading("Charms"))
 		for id in Run.charms:
 			list.add_child(_offer_row(id, "", c_panel, false, Callable()))
+
+
+## The run's monsters, each with a Sell button.
+func _add_owned_monsters() -> void:
+	for id in Run.jokers.duplicate():
+		var jid: String = id
+		var e := str(Run.editions.get(jid, ""))
+		list.add_child(_row(jid if e == "" else "%s|%s" % [jid, e], _monster_title(jid, Run.level(jid)), _monster_tag(jid, e), _tag_color(jid, e),
+			_owned_desc(jid, e), "Sell +%d" % Run.sell_price(jid), c_panel, true, func() -> void: _sell(jid)))
 
 
 func _buy(slot: int) -> void:

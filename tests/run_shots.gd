@@ -55,6 +55,14 @@ func _ready() -> void:
 	shop._buy(3)
 	await _wait(0.4)
 	await _shot("run_sack")
+	# A boss drop with a full den: sell one right there to make room.
+	Run.jokers = ["blob", "worm", "bat", "paint"]
+	Run.charms = ["dice"]
+	Run.sack = ["mouth", "octo"]
+	Run.sack_kind = "boss"
+	router.show_run_shop()
+	await _wait(0.6)
+	await _shot("run_drop_full")
 
 	# A raid on night 4: some blocks down, heroes on their way, one about to be squashed.
 	Run.round_n = 12

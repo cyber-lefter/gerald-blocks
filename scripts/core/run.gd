@@ -192,19 +192,19 @@ static func shiny(e: String) -> int:
 
 
 ## What an offer costs: a monster you own costs more for each level it already has,
-## shiny ones cost extra, and totems creep up as they level.
+## shiny ones cost extra, and totems cost 2 more with every level.
 static func price(offer: String) -> int:
 	var id := Jokers.base(offer)
 	var p := int(Jokers.info(id).get("price", 3))
 	if Jokers.is_monster(id):
 		if jokers.has(id):
-			return p + 2 * level(id)
+			return p + 3 * level(id)
 		var e := Jokers.edition(offer)
 		if e != "":
 			p += int(Jokers.EDITIONS[e]["price"])
 		return p
 	if Jokers.is_totem(id):
-		return 3 + totem(id) / 2
+		return 3 + 2 * totem(id)
 	return p
 
 
