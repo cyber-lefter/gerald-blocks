@@ -7,3 +7,4 @@
 - 0.3.0 (22 Oct 2026): totems, monster levels, growing and shiny monsters, mystery sacks; steeper late nights. [Download](https://github.com/cyber-lefter/gerald-blocks/raw/builds/GeraldBlocks-0.3.0-test.apk)
 - 0.4.0 (22 Oct 2026): boss raids, endless, Squash mode, choose your toad, unlocks, wardrobe, collection. [Download](https://github.com/cyber-lefter/gerald-blocks/raw/builds/GeraldBlocks-0.4.0-test.apk)
 - 0.4.1: whole toad on screen, "by BDS Labs" splash, toadmaxxing toad picker — [GeraldBlocks-0.4.1-test.apk](GeraldBlocks-0.4.1-test.apk)
+- 0.4.2: 11 new monsters (shapes, board, colours), Den II/III, Squash bosses at 40/30/20 — [GeraldBlocks-0.4.2-test.apk](GeraldBlocks-0.4.2-test.apk)
