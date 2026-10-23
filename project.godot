@@ -10,15 +10,15 @@ config_version=5
 
 [application]
 
-config/name="Prism Blocks"
+config/name="Gerald Blocks"
 run/main_scene="res://scenes/main.tscn"
 config/quit_on_go_back=false
 config/features=PackedStringArray("4.3", "Mobile")
-config/icon="res://icon.svg"
-config/version="0.1.0"
-boot_splash/bg_color=Color(0.055, 0.043, 0.161, 1)
+config/icon="res://icon.png"
+config/version="0.4.7"
+boot_splash/bg_color=Color(0.165, 0.133, 0.098, 1)
 boot_splash/image="res://splash.png"
-boot_splash/fullsize=true
+boot_splash/fullsize=false
 boot_splash/use_filter=true
 
 [autoload]
@@ -41,4 +41,4 @@ window/handheld/orientation=1
 
 renderer/rendering_method="mobile"
 textures/vram_compression/import_etc2_astc=true
-environment/defaults/default_clear_color=Color(0.07, 0.06, 0.18, 1)
+environment/defaults/default_clear_color=Color(0.06, 0.05, 0.035, 1)

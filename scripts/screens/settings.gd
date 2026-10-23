@@ -30,7 +30,7 @@ func _ready() -> void:
 	credits.pressed.connect(func() -> void: router.show_credits())
 	list.add_child(credits)
 
-	col.add_child(UI.label("Prism Blocks %s · by BDS Labs" % ProjectSettings.get_setting("application/config/version", "0.1.0"), 22, Color(0.75, 0.72, 0.95)))
+	col.add_child(UI.label("Gerald Blocks %s · by BDS Labs" % ProjectSettings.get_setting("application/config/version", "0.1.0"), 22, Color("a09480")))
 
 
 func go_back() -> void:
@@ -39,7 +39,7 @@ func go_back() -> void:
 
 ## A switch row: title and explanation on the left, an On/Off pill on the right.
 func _toggle(title: String, sub: String, key: String) -> Button:
-	var b := UI.button("", Color("2c2766"), 30, 124)
+	var b := UI.button("", Color("3a3028"), 30, 124)
 	var h := HBoxContainer.new()
 	h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	h.add_theme_constant_override("separation", 16)
@@ -56,7 +56,7 @@ func _toggle(title: String, sub: String, key: String) -> Button:
 	var t := UI.label(title, 34, Color.WHITE)
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(t)
-	var s := UI.label(sub, 21, Color(0.75, 0.72, 0.95))
+	var s := UI.label(sub, 21, Color("a09480"))
 	s.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	s.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(s)

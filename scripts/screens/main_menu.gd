@@ -24,61 +24,57 @@ func _ready() -> void:
 	var top := HBoxContainer.new()
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	col.add_child(top)
-	var settings := UI.button("Settings", Color("2c2766"), 26, 72)
+	var settings := UI.button("Settings", Color("3a3028"), 26, 72)
 	settings.pressed.connect(func() -> void: router.show_settings())
 	top.add_child(settings)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_child(spacer)
-	top.add_child(Widgets.CoinPill.new())
+	top.add_theme_constant_override("separation", 12)
+	var book := UI.button("Collection", Color("3a3028"), 26, 72)
+	book.pressed.connect(func() -> void: router.show_collection())
+	top.add_child(book)
+	var hats := UI.button("Wardrobe", Color("3a3028"), 26, 72)
+	hats.pressed.connect(func() -> void: router.show_wardrobe())
+	top.add_child(hats)
 
 	var logo := MenuLogo.new()
-	logo.custom_minimum_size = Vector2(0, 170)
+	logo.custom_minimum_size = Vector2(0, 300)
 	logo.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	col.add_child(logo)
-	col.add_child(UI.label("Prism Blocks", 88, Color("ffd23f"), 20))
-	col.add_child(UI.label("Drop. Clear. Combo.", 30, Color(1, 1, 1, 0.7)))
+	col.add_child(UI.label("Gerald Blocks", 88, Color("f0d060"), 20))
+	col.add_child(UI.label("Let him sleep. Squash the heroes.", 30, Color(1, 1, 1, 0.7)))
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(0, 20)
 	col.add_child(gap)
 
-	var best := Save.best()
-	var classic := UI.menu_button("Classic", "Best " + UI.fmt(best) if best > 0 else "Endless mode", Color("7b5cff"))
-	classic.pressed.connect(func() -> void: router.start_game("classic"))
-	col.add_child(classic)
-
-	var lvl := Save.unlocked()
-	var adv_sub := "Level %d of %d" % [lvl, Levels.COUNT]
-	if lvl >= Levels.COUNT and Save.stars(Levels.COUNT) > 0:
-		adv_sub = "All done! More levels soon"
-	var adventure := UI.menu_button("Adventure", adv_sub, Color("2fbf71"))
-	adventure.pressed.connect(func() -> void: router.show_island())
-	col.add_child(adventure)
-
-	var daily_best := Save.daily_best()
-	var daily_sub := "New puzzle today" if daily_best < 0 else "Today's best " + UI.fmt(daily_best)
-	var streak := Save.streak()
-	if streak > 0:
-		daily_sub = ("%d-day streak. " % streak) + ("Done today" if Save.played_daily_today() else "Keep it going!")
-	var daily := UI.menu_button("Daily challenge", daily_sub, Color("ff9a3c"))
-	daily.pressed.connect(func() -> void: router.start_game("daily"))
-	col.add_child(daily)
-
-	var shop := UI.menu_button("Shop", "Themes and power-ups", Color("2fc6f6"))
-	shop.pressed.connect(func() -> void: router.show_shop())
-	col.add_child(shop)
+	if Run.has_saved():
+		Run.resume()
+		var cont := UI.menu_button("Continue run", "%s · %d nap%s · %d gold" % [Run.label(Run.round_n), Run.naps, "" if Run.naps == 1 else "s", Run.gold], Color("6a8a3a"))
+		cont.pressed.connect(func() -> void:
+			Run.resume()
+			if Run.offers.is_empty():
+				router.start_game("run")
+			else:
+				router.show_run_shop())
+		col.add_child(cont)
+	var best := Run.best_round()
+	var new_sub := "Best: %s" % Run.label(best) if best > 0 else "8 nights, 3 rounds each"
+	var new_run := UI.menu_button("New run", new_sub, Color("a0603a"))
+	new_run.pressed.connect(func() -> void: router.show_toad_pick())
+	col.add_child(new_run)
+	var sq_best := Meta.stat("squash_best")
+	var squash := UI.menu_button("Squash mode", "Best: %s" % UI.fmt(sq_best) if sq_best > 0 else "Endless heroes. How many can you flatten?", Color("6a4a90"))
+	squash.pressed.connect(func() -> void: router.start_game("squash"))
+	col.add_child(squash)
 	col.add_child(UI.label("by BDS Labs", 24, Color(1, 1, 1, 0.45)))
 
 
-## A cluster of gem blocks gently bobbing above the title.
+## The Bog Toad asleep in his nest while a few heroes tiptoe in, with blocks bobbing above.
 class MenuLogo extends Control:
 	var t := 0.0
-	const CELLS := [
-		Vector2(-1.5, -1), Vector2(-0.5, -1), Vector2(0.5, -1),
-		Vector2(-0.5, 0), Vector2(0.5, 0), Vector2(1.5, 0),
-		Vector2(-1.5, 1), Vector2(0.5, 1), Vector2(1.5, 1),
-	]
+	const CELLS := [Vector2(-1.5, -1), Vector2(-0.5, -1), Vector2(0.5, -1), Vector2(0.5, 0), Vector2(1.5, 0)]
 
 	func _ready() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -89,9 +85,18 @@ class MenuLogo extends Control:
 
 	func _draw() -> void:
 		var pal: Array = Save.palette()
-		var s := minf(size.y / 3.6, 92.0)
-		var c0 := size / 2.0
+		var u := minf(size.x / 8.0, size.y / 4.4)
+		var c := Vector2(size.x / 2.0, size.y * 0.7)
 		for i in CELLS.size():
-			var bob := sin(t * 2.2 + i * 0.7) * s * 0.06
+			var bob := sin(t * 2.2 + i * 0.7) * u * 0.06
 			var p: Vector2 = CELLS[i]
-			BlockArt.draw_block(self, pal[i % pal.size()], c0 + p * s * 1.04 + Vector2(0, bob), s)
+			BlockArt.draw_block(self, pal[i % pal.size()], c + Vector2(-u * 1.0, -u * 2.4) + p * u * 0.62 + Vector2(0, bob), u * 0.6)
+		FmmArt.draw_nest(self, c + Vector2(0, u * 0.75), u * 2.9, u * 0.95)
+		FmmArt.draw_toad(self, c, u * 1.8 / 110.0, t, "nap", Vector2(0, 1), 0.0, FmmArt.TOAD, Meta.hat())
+		var zk := fmod(t * 0.5, 1.0)
+		draw_string(UI.display_font(), c + Vector2(u * (1.3 + zk * 0.5), -u * (1.1 + zk * 1.0)), "z", HORIZONTAL_ALIGNMENT_LEFT, -1,
+			int(u * (0.45 + 0.3 * zk)), Color(FmmArt.C_TEXT, 1.0 - zk))
+		var kinds := [FmmArt.TANK, FmmArt.MAGE, FmmArt.ARCHER]
+		for i in 3:
+			var hp := c + Vector2(u * (2.6 + 0.75 * i), -u * (0.2 + 0.5 * (i % 2)))
+			FmmArt.draw_hero(self, kinds[i], hp, u / 60.0, t + i, 0.0, 0.0, -1.0, 0.6)

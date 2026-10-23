@@ -30,7 +30,7 @@ func _ready() -> void:
 		"Godot is free and open source under the MIT license.",
 	])
 
-	var show := UI.button("Show engine licenses", Color("2c2766"), 26, 84)
+	var show := UI.button("Show engine licenses", Color("3a3028"), 26, 84)
 	list.add_child(show)
 	var licenses := Label.new()
 	licenses.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -57,7 +57,7 @@ func _entry(list: VBoxContainer, title: String, lines: Array) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 6)
 	panel.add_child(v)
-	var t := UI.label(title, 34, Color("ffd23f"))
+	var t := UI.label(title, 34, Color("f0d060"))
 	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	v.add_child(t)
 	for line in lines:
