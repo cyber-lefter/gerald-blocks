@@ -23,7 +23,7 @@ const STAT_TEXT := {
 const TOADS := {
 	"bog": {"name": "Bog Toad", "desc": "No tricks. A good, sleepy toad.", "color": "788a46", "req": []},
 	"rich": {"name": "Rich Toad", "desc": "Starts the run with 12 gold", "color": "b89a40", "req": ["rounds_won", 80]},
-	"big": {"name": "Big Belly Toad", "desc": "Room for 5 monsters", "color": "8a6a4a", "req": ["best_night", 16]},
+	"big": {"name": "Big Belly Toad", "desc": "Room for 5 monsters", "color": "8a6a4a", "req": ["wins", 3]},
 	"sleepy": {"name": "Sleepy Toad", "desc": "Starts with 4 naps and can keep 4", "color": "6a7aa0", "req": ["squashed", 600]},
 	"shiny": {"name": "Shiny Toad", "desc": "Shiny monsters turn up 3x as often", "color": "7ab0b8", "req": ["shinies", 16]},
 	"old": {"name": "Old Toad", "desc": "Starts with every totem at Lv 1", "color": "6a6a5a", "req": ["bosses", 20]},
@@ -75,6 +75,9 @@ const MONSTER_REQ := {
 	"paint": ["rounds_won", 15],
 	"slug": ["runs", 8],
 	"clean": ["lines", 400],
+	"holy": ["squashed", 150],
+	"bargain": ["gold", 400],
+	"echo": ["runs", 12],
 }
 
 

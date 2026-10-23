@@ -11,10 +11,13 @@ const MAX_SNACKS := 2
 const COMMON := 0
 const UNCOMMON := 1
 const RARE := 2
-const RARITY_NAMES := ["Common", "Uncommon", "Rare"]
-const RARITY_COLORS := ["a09480", "6aa0c0", "e0a040"]
+## Legendaries never show up in the shop: only a beaten boss drops them (about 1 in 4).
+const LEGENDARY := 3
+const RARITY_NAMES := ["Common", "Uncommon", "Rare", "Legendary"]
+const RARITY_COLORS := ["a09480", "6aa0c0", "e0a040", "f0d060"]
 ## How often each rarity turns up in the shop, relative to each other.
 const RARITY_WEIGHT := [6.0, 3.0, 1.2]
+const LEGENDARY_CHANCE := 0.25
 
 ## id -> name, what it does, price, rarity, colour, and its look for MonsterArt:
 ## body shape, eyes, mouth and extra parts (see MonsterArt.draw).
@@ -95,6 +98,40 @@ const JOKERS := {
 		"look": {"body": "tall", "eyes": 2, "mouth": "grin", "extra": ["ears_pointy", "splats"]}},
 	"slug": {"name": "Patchwork Slug", "desc": "Lines with 4+ different colours score +{v} each", "vals": [50, 80, 120], "price": 5, "rarity": UNCOMMON, "color": "c8a070",
 		"look": {"body": "slug", "eyes": "stalks", "mouth": "smile", "extra": ["patches"]}},
+	# Heroes: care who gets squashed.
+	"ferret": {"name": "Pickpocket Ferret", "desc": "Squashed thieves drop {v} gold", "vals": [2, 3, 5], "price": 4, "rarity": COMMON, "color": "b8946a",
+		"look": {"body": "tall", "eyes": "small", "mouth": "teeth", "extra": ["ears_round", "tail", "mask"]}},
+	"beetle": {"name": "Bomb Beetle", "desc": "Squashed bombers blow up a 5x5 area; blasted blocks +{v} each", "vals": [10, 20, 35], "price": 5, "rarity": UNCOMMON, "color": "8a3a3a",
+		"look": {"body": "wide", "eyes": 2, "mouth": "grin", "extra": ["antennae", "fuse"]}},
+	"holy": {"name": "Holy Moly", "desc": "Squashed healers give the toad a nap ({v} per round)", "vals": [1, 2, 3], "price": 7, "rarity": RARE, "color": "e8e0c8",
+		"look": {"body": "blob", "eyes": "sleepy", "mouth": "smile", "extra": ["halo", "nose"]}},
+	"gargoyle": {"name": "Grumpy Gargoyle", "desc": "Heroes that reach the bed get flung back to the top ({v} per round)", "vals": [1, 2, 3], "price": 7, "rarity": RARE, "color": "8a8a90",
+		"look": {"body": "square", "eyes": "glow", "mouth": "fangs", "extra": ["bat_wings", "horn", "cracks"]}},
+	# Combos: care about clearing again and again.
+	"frog": {"name": "Drumming Frog", "desc": "Every 3rd clear in a row adds +{v}", "vals": [60, 100, 160], "price": 4, "rarity": COMMON, "color": "6a9a5a",
+		"look": {"body": "wide", "eyes": "toad", "mouth": "smile", "extra": ["drum"]}},
+	"fly": {"name": "Fever Fly", "desc": "Fever starts at combo x3, and Fever clears score x{v}", "vals": [1.5, 2, 3], "price": 6, "rarity": UNCOMMON, "color": "d06a3a",
+		"look": {"body": "small", "eyes": 2, "mouth": "grin", "extra": ["moth_wings", "flames"]}},
+	"echo": {"name": "Echo Bat", "desc": "Each clear has a {v}% chance to score twice", "vals": [25, 35, 50], "price": 7, "rarity": RARE, "color": "5a6ab0",
+		"look": {"body": "small", "eyes": "big", "mouth": "o", "extra": ["bat_wings", "ears_pointy", "rings"]}},
+	# Economy: care about gold.
+	"cointoad": {"name": "Coin Toad", "desc": "Unused pieces pay {v} gold each, but rerolls cost 1 more", "vals": [2, 3, 4], "price": 4, "rarity": COMMON, "color": "a0a050",
+		"look": {"body": "wide", "eyes": "toad", "mouth": "line", "extra": ["coins"]}},
+	"tax": {"name": "Tax Collector", "desc": "Sells for +{v} gold more for every round you keep it", "vals": [3, 4, 6], "grows": true, "price": 5, "rarity": UNCOMMON, "color": "6a7a9a",
+		"look": {"body": "tall", "eyes": "specs", "mouth": "line", "extra": ["tophat", "coin"]}},
+	"bargain": {"name": "Bargain Bug", "desc": "Everything in the shop costs {v} gold less", "vals": [1, 2, 3], "price": 7, "rarity": RARE, "color": "d0b040",
+		"look": {"body": "small", "eyes": 2, "mouth": "grin", "extra": ["antennae", "tag"]}},
+	# Legendary: only bosses drop them.
+	"dragon": {"name": "The Sleeping Dragon", "desc": "Every clear scores x{v}, plus x0.25 for every night so far", "vals": [1.5, 2, 2.5], "price": 10, "rarity": LEGENDARY, "color": "b03a3a",
+		"look": {"body": "lump", "eyes": "sleepy", "mouth": "fangs", "extra": ["bat_wings", "horn", "zzz"]}},
+	"king": {"name": "Toad King", "desc": "+1 monster slot, and the toad keeps {v} more nap", "vals": [1, 2, 3], "price": 10, "rarity": LEGENDARY, "color": "788a46",
+		"look": {"body": "wide", "eyes": "toad", "mouth": "smile", "extra": ["crown"]}},
+	"hydra": {"name": "Hydra", "desc": "Sell a monster at Lv 2+ and you keep a Lv {v} copy", "vals": [1, 1, 2], "price": 10, "rarity": LEGENDARY, "color": "3a8a7a",
+		"look": {"body": "blob", "eyes": 2, "mouth": "fangs", "extra": ["heads"]}},
+	"moonmoth": {"name": "Moon Moth", "desc": "Every round won gives {v} free Honey Jar (if there's room)", "vals": [1, 1, 2], "price": 10, "rarity": LEGENDARY, "color": "a0b0e0",
+		"look": {"body": "small", "eyes": "big", "mouth": "line", "extra": ["moth_wings", "antennae", "moon"]}},
+	"wyrm": {"name": "Old Wyrm", "desc": "Totems level up {v} times when bought", "vals": [2, 2, 3], "price": 10, "rarity": LEGENDARY, "color": "6a7a5a",
+		"look": {"body": "eel", "eyes": "glow", "mouth": "tusks", "extra": ["brow"]}},
 	# Growing: they get stronger the longer you keep them (Run.grow counts for them).
 	"worm": {"name": "Glutton Worm", "desc": "Grows +{v} points per line for every 5 lines you clear", "vals": [1, 2, 3], "grows": true,
 		"price": 5, "rarity": UNCOMMON, "color": "d08a8a", "look": {"body": "grub", "eyes": 2, "mouth": "open", "extra": []}},
@@ -126,7 +163,7 @@ const EDITIONS := {
 }
 
 const SACKS := {
-	"sack": {"name": "Mystery Sack", "desc": "Pick 1 of 3 monsters. Rare and shiny ones more likely", "price": 4, "color": "a07a50"},
+	"sack": {"name": "Mystery Sack", "desc": "Pick 1 of 3 monsters. Rare and shiny ones more likely", "price": 6, "color": "a07a50"},
 }
 
 const SNACKS := {
@@ -244,7 +281,7 @@ static func roll_monsters(rng: RandomNumberGenerator, n: int, owned: Array, leve
 	var pool: Array = []
 	var weights: Array = []
 	for id in JOKERS:
-		if not Meta.monster_unlocked(id):
+		if not Meta.monster_unlocked(id) or rarity(id) == LEGENDARY:
 			continue
 		var w: float = rarity_weight[rarity(id)]
 		if owned.has(id):
@@ -295,8 +332,20 @@ static func roll_sack(rng: RandomNumberGenerator, owned: Array, levels: Dictiona
 
 
 ## A beaten boss drops a choice of two rare monsters (or level-ups of ones the player has).
+## Sometimes (LEGENDARY_CHANCE) the second pick is a legendary the run doesn't have yet.
 static func roll_boss_drop(rng: RandomNumberGenerator, owned: Array, levels: Dictionary) -> Array:
-	return roll_monsters(rng, 2, owned, levels, [0.0, 0.3, 3.0], 2.0)
+	var out := roll_monsters(rng, 2, owned, levels, [0.0, 0.3, 3.0], 2.0)
+	var legends: Array = []
+	for id in JOKERS:
+		if rarity(id) == LEGENDARY and not owned.has(id):
+			legends.append(id)
+	if not legends.is_empty() and rng.randf() < LEGENDARY_CHANCE:
+		var pick: String = legends[rng.randi_range(0, legends.size() - 1)]
+		if out.size() >= 2:
+			out[1] = pick
+		else:
+			out.append(pick)
+	return out
 
 
 ## The little picture on a card or button: a monster (with its shine), snack, charm, totem or sack.
@@ -307,6 +356,8 @@ static func draw_icon(ci: CanvasItem, offer: String, c: Vector2, r: float, t: fl
 		var e := edition(offer)
 		if e != "":
 			MonsterArt.draw_shine(ci, e, c, r, t)
+		if rarity(id) == LEGENDARY:
+			MonsterArt.draw_aura(ci, c, r, t)
 		MonsterArt.draw(ci, JOKERS[id]["look"], c, r, t, col, id.hash() & 255)
 	elif SNACKS.has(id):
 		MonsterArt.draw_snack(ci, str(SNACKS[id]["icon"]), c, r, col)

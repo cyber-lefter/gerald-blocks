@@ -198,14 +198,19 @@ static func price(offer: String) -> int:
 	var p := int(Jokers.info(id).get("price", 3))
 	if Jokers.is_monster(id):
 		if jokers.has(id):
-			return p + 3 * level(id)
+			return _discount(p + 3 * level(id))
 		var e := Jokers.edition(offer)
 		if e != "":
 			p += int(Jokers.EDITIONS[e]["price"])
-		return p
+		return _discount(p)
 	if Jokers.is_totem(id):
-		return 3 + 2 * totem(id)
-	return p
+		return _discount(3 + 2 * totem(id))
+	return _discount(p)
+
+
+## The Bargain Bug takes a little off everything (never below 1 gold).
+static func _discount(p: int) -> int:
+	return maxi(1, p - int(v("bargain")))
 
 
 ## Why an offer can't be bought right now ("Full", "Max level"), or "" when it can.
@@ -245,7 +250,7 @@ static func _take(offer: String) -> void:
 				Meta.add("shinies")
 		Meta.mark_seen(id)
 	elif Jokers.is_totem(id):
-		totems[id] = totem(id) + 1
+		totems[id] = totem(id) + (int(v("wyrm")) if has("wyrm") else 1)
 	elif Jokers.is_charm(id):
 		add_charm(id)
 	elif Jokers.is_sack(id):
@@ -269,7 +274,7 @@ static func pick_from_sack(k: int) -> bool:
 
 
 static func sell_price(id: String) -> int:
-	var p := int(Jokers.info(id)["price"]) * level(id)
+	var p := int(Jokers.info(id)["price"]) * level(id) + int(grown("tax") if id == "tax" else 0) * 2
 	var e := str(editions.get(id, ""))
 	if e != "":
 		p += int(Jokers.EDITIONS[e]["price"])
@@ -278,6 +283,12 @@ static func sell_price(id: String) -> int:
 
 static func sell(id: String) -> void:
 	gold += sell_price(id)
+	if has("hydra") and id != "hydra" and level(id) >= 2:
+		# The Hydra grows the head back: the monster stays, at a low level and without its shine.
+		jlevels[id] = mini(int(v("hydra")), level(id) - 1)
+		editions.erase(id)
+		grow[id] = 0
+		return
 	jokers.erase(id)
 	jlevels.erase(id)
 	editions.erase(id)
@@ -290,7 +301,7 @@ static func grown(id: String) -> float:
 	match id:
 		"worm":
 			return floorf(n / 5.0) * v(id)
-		"piggy", "hoarder", "yeti":
+		"piggy", "hoarder", "yeti", "tax":
 			return n * v(id)
 	return 0.0
 
@@ -306,6 +317,10 @@ static func round_won() -> void:
 	Meta.best("best_night", night_of(round_n))
 	add_grow("piggy")
 	add_grow("yeti")
+	add_grow("tax")
+	for k in int(v("moonmoth")):
+		if snacks.size() < max_snacks():
+			snacks.append("honey")
 
 
 static func max_jokers() -> int:
@@ -313,7 +328,7 @@ static func max_jokers() -> int:
 	for d in ["den", "den2", "den3"]:
 		if charms.has(d):
 			dens += 1
-	return Jokers.MAX_JOKERS + dens + (1 if toad == "big" else 0)
+	return Jokers.MAX_JOKERS + dens + (1 if toad == "big" else 0) + (1 if has("king") else 0)
 
 
 static func max_snacks() -> int:
@@ -321,7 +336,7 @@ static func max_snacks() -> int:
 
 
 static func max_naps() -> int:
-	return MAX_NAPS + (1 if charms.has("pillow") else 0) + (1 if toad == "sleepy" else 0)
+	return MAX_NAPS + (1 if charms.has("pillow") else 0) + (1 if toad == "sleepy" else 0) + int(v("king"))
 
 
 ## Buys a charm: it lasts for the rest of the run (the pillow also hands over its nap at once).
@@ -338,6 +353,8 @@ static func round_reward(pieces_left: int) -> Array:
 	var parts: Array = [["Round cleared", 3]]
 	if pieces_left > 0:
 		parts.append(["Unused pieces", pieces_left])
+		if has("cointoad"):
+			parts.append(["Coin Toad", pieces_left * (int(v("cointoad")) - 1)])
 		if has("crab"):
 			parts.append(["Hermit Crab", pieces_left * int(v("crab"))])
 	var cap := (int(v("miser")) if has("miser") else 3) + (2 if charms.has("purse") else 0)
@@ -354,7 +371,7 @@ static func round_reward(pieces_left: int) -> Array:
 
 
 static func reroll_cost() -> int:
-	return maxi(0, 2 + rerolls - (1 if charms.has("dice") else 0))
+	return maxi(0, 2 + rerolls - (1 if charms.has("dice") else 0) + (1 if has("cointoad") else 0))
 
 
 static func round_name(r: int) -> String:

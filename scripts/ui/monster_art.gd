@@ -130,6 +130,22 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 			var tip := Vector2(sx * 20 + sin(t * 3.0 + sx) * 3, face.y - 52)
 			ci.draw_line(Vector2(sx * 8, face.y - 22), tip, INK, 4.0, true)
 			_circle(ci, tip, 5, col.lightened(0.3))
+	if extra.has("heads"):
+		for sx in [-1.0, 1.0]:
+			var hp := Vector2(sx * 40, -40 + sin(t * 2.5 + sx) * 4)
+			ci.draw_line(Vector2(sx * 16, -10), hp, INK, 18.0, true)
+			ci.draw_line(Vector2(sx * 16, -10), hp, col, 10.0, true)
+			_fill(ci, FmmArt.oval(hp, 14, 12, 12), col, hp)
+			ci.draw_circle(hp + Vector2(sx * 4, -3), 3.5, INK)
+	if extra.has("flames"):
+		for k in 3:
+			var fx := -20.0 + k * 20.0
+			var fh := 26.0 + sin(t * 9.0 + k * 2.0) * 6.0
+			_flat(ci, PackedVector2Array([Vector2(fx - 9, -20), Vector2(fx, -20 - fh), Vector2(fx + 9, -20)]), Color("f0a030"))
+	if extra.has("moon"):
+		var mc := Vector2(-40, -44)
+		_circle(ci, mc, 13, Color("f0e8b0"))
+		ci.draw_circle(mc + Vector2(6, -4), 10, Color("3a3040"))
 	if extra.has("curl_tail"):
 		var pts := PackedVector2Array()
 		for j in 22:
@@ -258,6 +274,50 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 			for d in [Vector2(-2, -5), Vector2(2, 5)]:
 				_circle(ci, p + d, 5, WHITE)
 
+	if extra.has("fuse"):
+		var bc := Vector2(30, -26)
+		_circle(ci, bc, 13, Color("2a2a30"))
+		ci.draw_line(bc + Vector2(6, -11), bc + Vector2(14, -22), INK, 3.0, true)
+		ci.draw_circle(bc + Vector2(14, -22), 4.0 + sin(t * 14.0) * 1.5, Color("f0a030"))
+	if extra.has("drum"):
+		var dc := Vector2(0, 30)
+		_fill(ci, _rect(-20, 22, 20, 42), Color("c05040"), dc)
+		ci.draw_line(Vector2(-20, 22), Vector2(20, 22), WHITE, 5.0)
+		for sx in [-1.0, 1.0]:
+			var st := Vector2(sx * 26, 6 + absf(sin(t * 6.0 + sx)) * -8)
+			ci.draw_line(Vector2(sx * 14, 22), st, INK, 5.0, true)
+	if extra.has("coins"):
+		for k in 3:
+			var cp := Vector2(30, 34 - k * 8)
+			_fill(ci, FmmArt.oval(cp, 12, 5, 12), FmmArt.C_GOLD, cp)
+	if extra.has("tophat"):
+		var top := face.y - 40
+		_flat(ci, _rect(-26, top + 6, 26, top + 12), INK)
+		_flat(ci, _rect(-16, top - 26, 16, top + 8), Color("2a2a34"))
+		ci.draw_line(Vector2(-16, top + 2), Vector2(16, top + 2), Color("a04040"), 5.0)
+	if extra.has("tag"):
+		var tg := Vector2(30, 24)
+		_flat(ci, PackedVector2Array([tg + Vector2(-8, -10), tg + Vector2(14, -10), tg + Vector2(14, 10), tg + Vector2(-8, 10), tg + Vector2(-16, 0)]), WHITE)
+		ci.draw_circle(tg + Vector2(-8, 0), 2.5, INK)
+		ci.draw_string(ThemeDB.fallback_font, tg + Vector2(-2, 6), "%", HORIZONTAL_ALIGNMENT_LEFT, -1, 16, INK)
+	if extra.has("crown"):
+		var top := face.y - 36
+		var cr := PackedVector2Array([Vector2(-22, top + 8), Vector2(-24, top - 16), Vector2(-12, top - 4), Vector2(0, top - 22),
+			Vector2(12, top - 4), Vector2(24, top - 16), Vector2(22, top + 8)])
+		_flat(ci, cr, FmmArt.C_GOLD)
+		ci.draw_circle(Vector2(0, top - 2), 4, Color("d04848"))
+	if extra.has("halo"):
+		var hy := face.y - 46 + sin(t * 2.0) * 2
+		ci.draw_arc(Vector2(0, hy), 18, 0, TAU, 24, INK, 9.0, true)
+		ci.draw_arc(Vector2(0, hy), 18, 0, TAU, 24, Color("f0d060"), 5.0, true)
+	if extra.has("rings"):
+		for k in 2:
+			var rr := 10.0 + fmod(t * 20.0 + k * 12.0, 24.0)
+			ci.draw_arc(Vector2(0, face.y + 18), rr + 16, PI * 0.25, PI * 0.75, 10, Color(WHITE, 1.0 - rr / 34.0), 3.0, true)
+	if extra.has("zzz"):
+		for k in 3:
+			var zp := Vector2(28 + k * 9, -40 - k * 12 - fmod(t * 8.0, 8.0))
+			ci.draw_string(ThemeDB.fallback_font, zp, "z", HORIZONTAL_ALIGNMENT_LEFT, -1, 14 + k * 4, WHITE)
 	if extra.has("rock"):
 		_fill(ci, FmmArt.blobp(Vector2(26, 26), 15, 12, 8, 3, 0.15), Color("8a8274"), Vector2(26, 26))
 	if extra.has("leaves"):
@@ -285,6 +345,8 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 		for k in 4:
 			_flat(ci, _rect(-4 + k * 12, 6 + (k % 2) * 6, 6 + k * 12, 16 + (k % 2) * 6), cols[k])
 
+	if extra.has("mask"):
+		_flat(ci, _rect(face.x - 30, face.y - 12, face.x + 30, face.y + 6), Color("2a2420"))
 	_eyes(ci, look.get("eyes", 2), face, t, col)
 	if extra.has("nose"):
 		_circle(ci, face + Vector2(0, 8), 7, Color("d07a8a"))
@@ -513,6 +575,16 @@ static func draw_totem(ci: CanvasItem, id: String, c: Vector2, r: float, col: Co
 
 
 ## Charms: an amulet on a string, each with its own sign.
+## Legendaries: a slow golden glow with rays behind the monster.
+static func draw_aura(ci: CanvasItem, c: Vector2, r: float, t: float) -> void:
+	for k in 8:
+		var a := TAU * k / 8.0 + t * 0.4
+		var d := Vector2(cos(a), sin(a))
+		var side := Vector2(-d.y, d.x) * r * 0.12
+		ci.draw_colored_polygon(PackedVector2Array([c + side, c + d * r * 1.25, c - side]), Color(1.0, 0.85, 0.35, 0.22))
+	ci.draw_circle(c, r * (0.95 + 0.05 * sin(t * 3.0)), Color(1.0, 0.85, 0.35, 0.18))
+
+
 static func draw_charm(ci: CanvasItem, id: String, c: Vector2, r: float, t: float, col: Color) -> void:
 	_begin(ci, c, r)
 	var sway := sin(t * 1.6) * 0.08

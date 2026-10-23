@@ -11,12 +11,17 @@ var detail_icon: RunShop.JokerIcon
 
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Legendaries stay out of the list (and the count) until one has been found.
 	var found := 0
+	var total := 0
 	for id in Jokers.JOKERS:
+		if _hidden(id):
+			continue
+		total += 1
 		if Meta.is_seen(id):
 			found += 1
 	var col := Screens.frame(self, "Collection", func() -> void: router.show_menu())
-	col.add_child(UI.label("Monsters found: %d of %d" % [found, Jokers.JOKERS.size()], 30, Color("f0d060")))
+	col.add_child(UI.label("Monsters found: %d of %d" % [found, total], 30, Color("f0d060")))
 
 	# The tapped monster.
 	var card := PanelContainer.new()
@@ -63,7 +68,8 @@ func _ready() -> void:
 	grid.add_theme_constant_override("v_separation", 8)
 	inner.add_child(grid)
 	for id in Jokers.JOKERS:
-		grid.add_child(_cell(id))
+		if not _hidden(id):
+			grid.add_child(_cell(id))
 
 	inner.add_child(UI.label("Your toad's records", 30, Color.WHITE, 8))
 	var stats := [["Runs played", "runs"], ["Runs won", "wins"], ["Best night", "best_night"], ["Rounds won", "rounds_won"],
@@ -77,6 +83,10 @@ func _ready() -> void:
 		row.add_child(a)
 		row.add_child(UI.label(UI.fmt(Meta.stat(st[1])), 26, Color.WHITE))
 		inner.add_child(row)
+
+
+static func _hidden(id: String) -> bool:
+	return Jokers.rarity(id) == Jokers.LEGENDARY and not Meta.is_seen(id)
 
 
 func go_back() -> void:

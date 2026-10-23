@@ -31,6 +31,9 @@ var level: Dictionary = {}
 var palette: Array = []
 ## Paint Goblin's lucky colour this round (palette index), or -1.
 var lucky_color := -1
+## What's left this round of Holy Moly's naps and the Grumpy Gargoyle's flings.
+var holy_left := 0
+var fling_left := 0
 var theme: Dictionary = {}
 var spark_style := "star"
 var reduced := false
@@ -204,6 +207,8 @@ func setup(p_mode: String, p_level: Dictionary) -> void:
 			score = int(Run.v("moth"))
 		if _joker("paint"):
 			lucky_color = randi_range(0, 7)
+		holy_left = int(Run.v("holy"))
+		fling_left = int(Run.v("gargoyle"))
 		if raid:
 			_spawn_hero()
 			_spawn_hero()
@@ -620,7 +625,7 @@ func _place(slot: int, gx: int, gy: int) -> void:
 				goal_current += int(res["ice"])
 
 		var started_fever := false
-		if streak >= FEVER_STREAK and not in_fever:
+		if streak >= _fever_at() and not in_fever:
 			in_fever = true
 			started_fever = true
 
@@ -679,6 +684,11 @@ func _place(slot: int, gx: int, gy: int) -> void:
 	_after_move()
 
 
+## The combo that starts Fever (the Fever Fly brings it forward).
+func _fever_at() -> int:
+	return 3 if _joker("fly") else FEVER_STREAK
+
+
 func _joker(id: String) -> bool:
 	return mode == "run" and Run.has(id)
 
@@ -715,6 +725,9 @@ func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: in
 	if _joker("hoarder") and Run.grown("hoarder") > 0:
 		pts += int(Run.grown("hoarder"))
 		_joker_pop("hoarder", "+%d" % int(Run.grown("hoarder")))
+	if _joker("frog") and streak >= 3 and streak % 3 == 0:
+		pts += int(Run.v("frog"))
+		_joker_pop("frog", "+%d" % int(Run.v("frog")))
 	if _joker("imp") and int(ctx.get("blocks", 0)) <= 2:
 		pts += int(Run.v("imp"))
 		_joker_pop("imp", "+%d" % int(Run.v("imp")))
@@ -773,6 +786,16 @@ func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: in
 	if _joker("clean") and _board_empty():
 		x *= Run.v("clean")
 		_joker_pop("clean", "x" + Jokers.fmt(Run.v("clean")))
+	if _joker("fly") and in_fever:
+		x *= Run.v("fly")
+		_joker_pop("fly", "x" + Jokers.fmt(Run.v("fly")))
+	if _joker("dragon"):
+		var d := Run.v("dragon") + 0.25 * (_night() - 1)
+		x *= d
+		_joker_pop("dragon", "x" + Jokers.fmt(d))
+	if _joker("echo") and randf() * 100.0 < Run.v("echo"):
+		x *= 2.0
+		_joker_pop("echo", "echo! x2")
 	if _joker("mouth") and line_count >= 3:
 		x *= Run.v("mouth")
 		_joker_pop("mouth", "x" + Jokers.fmt(Run.v("mouth")))
@@ -1270,6 +1293,24 @@ func _walkable(x: int, y: int) -> bool:
 
 
 func _reach_bed(h: Dictionary) -> void:
+	if _joker("gargoyle") and fling_left > 0 and not h.get("boss", false):
+		var tops: Array = []
+		for x in N:
+			if _walkable(x, 0):
+				tops.append(x)
+		if not tops.is_empty():
+			# Flung back to the top row instead of waking the toad.
+			fling_left -= 1
+			var from := _cell_center(float(h["x"]), float(h["y"]))
+			h["x"] = tops.pick_random()
+			h["y"] = 0
+			h["py"] = -1.2
+			h["px"] = float(h["x"])
+			_text("FLUNG!", from - Vector2(0, cell * 0.5), cell * 0.7, true)
+			_joker_pop("gargoyle", "fling!")
+			_show_joker_pops()
+			Sfx.play("bomb", 1.2)
+			return
 	heroes.erase(h)
 	var lost := 2 if h["type"] == "bomber" or h.get("boss", false) else 1
 	_add_naps(-lost)
@@ -1312,6 +1353,13 @@ func _hit_heroes(hit: Dictionary, mult: float) -> int:
 				pts += _boss_down(c)
 			if h["type"] == "bomber":
 				pts += _bomber_blast(int(h["x"]), int(h["y"]))
+			if h["type"] == "thief" and _joker("ferret"):
+				Run.gold += int(Run.v("ferret"))
+				_joker_pop("ferret", "+%d gold" % int(Run.v("ferret")))
+			if h["type"] == "healer" and _joker("holy") and holy_left > 0 and naps() < max_naps():
+				holy_left -= 1
+				_add_naps(1)
+				_joker_pop("holy", "+1 nap")
 			_text("BONK!", c - Vector2(0, cell * 0.4), cell * 0.85, true, 0.04)
 			_spark(c, Color(1.0, 0.84, 0.3), 10, 1.4)
 		else:
@@ -1379,8 +1427,9 @@ func _squash_bonus(base: int) -> int:
 ## A squashed bomber goes off: the blocks around him are blown away (5 points each).
 func _bomber_blast(x: int, y: int) -> int:
 	var n := 0
-	for dy in range(-1, 2):
-		for dx in range(-1, 2):
+	var r := 2 if _joker("beetle") else 1
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
 			var nx := x + dx
 			var ny := y + dy
 			if nx < 0 or ny < 0 or nx >= N or ny >= N:
@@ -1398,6 +1447,9 @@ func _bomber_blast(x: int, y: int) -> int:
 	rings.append({"pos": c, "t0": time, "color": Color(1.0, 0.6, 0.2), "r": cell * 2.6})
 	Sfx.play_later("bomb", 0.05, 0.8)
 	_text("KABOOM!", c + Vector2(0, cell * 0.5), cell * 0.7, true, 0.1)
+	if _joker("beetle"):
+		_joker_pop("beetle", "+%d" % (n * int(Run.v("beetle"))))
+		return n * (5 + int(Run.v("beetle")))
 	return n * 5
 
 
@@ -1624,7 +1676,7 @@ func use_undo() -> bool:
 	dealer.rng.state = u["rng"]
 	dealer.recent_groups = u["recent"]
 	dealer.trays = u["trays"]
-	in_fever = streak >= FEVER_STREAK
+	in_fever = streak >= _fever_at()
 	undo_state = {}
 	tray_return = [null, null, null]
 	dying = []

@@ -291,8 +291,10 @@ func _row(icon_id: String, title: String, tag: String, tag_color: Color, desc_te
 	sb.border_color = UI.INK
 	if Jokers.edition(icon_id) != "":
 		sb.border_color = Color(str(Jokers.EDITIONS[Jokers.edition(icon_id)]["color"]))
-	elif Jokers.is_monster(id) and Jokers.rarity(id) == Jokers.RARE:
-		sb.border_color = Color(Jokers.RARITY_COLORS[Jokers.RARE])
+	elif Jokers.is_monster(id) and Jokers.rarity(id) >= Jokers.RARE:
+		sb.border_color = Color(Jokers.RARITY_COLORS[Jokers.rarity(id)])
+		if Jokers.rarity(id) == Jokers.LEGENDARY:
+			sb.bg_color = Color("3a3018")
 	sb.set_border_width_all(4)
 	sb.content_margin_left = 14
 	sb.content_margin_right = 16

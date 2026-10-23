@@ -58,7 +58,7 @@ func _ready() -> void:
 	# A boss drop with a full den: sell one right there to make room.
 	Run.jokers = ["blob", "worm", "bat", "paint"]
 	Run.charms = ["dice"]
-	Run.sack = ["mouth", "octo"]
+	Run.sack = ["mouth", "dragon"]
 	Run.sack_kind = "boss"
 	router.show_run_shop()
 	await _wait(0.6)
