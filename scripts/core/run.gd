@@ -12,7 +12,7 @@ const ROUND_NAMES := ["Light snooze", "Deep sleep", "Hero raid"]
 # heroes pay well (their danger is the naps). The first nights are gentle; later nights climb
 # steeply because levelled monsters, totems and growing monsters snowball (like Balatro's antes).
 # Tuned with tests/run_bot.gd, which buys everything it can afford.
-const BASE_TARGET := [100, 140, 220, 340, 520, 820, 1300, 2100]
+const BASE_TARGET := [100, 150, 260, 440, 740, 1250, 2100, 3500]
 const TARGET_MULT := [1.0, 1.3, 1.6]
 const PIECES := [18, 18, 22]
 
@@ -144,7 +144,7 @@ static func target(r: int) -> int:
 	var night := night_of(r)
 	var base: int = BASE_TARGET[mini(night, NIGHTS) - 1]
 	if night > NIGHTS:
-		base = int(base * pow(1.5, night - NIGHTS))
+		base = int(base * pow(1.6, night - NIGHTS))
 	return int(roundf(base * float(TARGET_MULT[slot_of(r)]) / 10.0) * 10.0)
 
 
@@ -161,7 +161,7 @@ static func boss_type(r: int) -> String:
 
 
 static func pieces(r: int) -> int:
-	return PIECES[slot_of(r)] + int(v("troll")) + (1 if charms.has("lantern") else 0) + (6 if is_boss(r) else 0)
+	return PIECES[slot_of(r)] - (3 if has("gremlin") else 0) + int(v("troll")) + (1 if charms.has("lantern") else 0) + (6 if is_boss(r) else 0)
 
 
 static func has(joker: String) -> bool:
@@ -175,7 +175,18 @@ static func level(id: String) -> int:
 
 ## A monster's number at its current level (0 when the run doesn't have it).
 static func v(id: String) -> float:
-	return Jokers.val(id, level(id)) if jokers.has(id) else 0.0
+	if not jokers.has(id):
+		return 0.0
+	var n := Jokers.val(id, level(id))
+	# The Mirror Mimic boosts whichever monster sits just left of it.
+	var m := jokers.find("mirror")
+	if m > 0 and jokers[m - 1] == id:
+		n *= Jokers.val("mirror", level("mirror"))
+	return n
+
+
+## Set when the Glass Golem shatters at the end of a round (shown on the round's dialog).
+static var broke := ""
 
 
 static func totem(id: String) -> int:
@@ -318,6 +329,12 @@ static func round_won() -> void:
 	add_grow("piggy")
 	add_grow("yeti")
 	add_grow("tax")
+	broke = ""
+	if has("glass") and randf() < 1.0 / 6.0:
+		broke = Jokers.info("glass")["name"]
+		jokers.erase("glass")
+		jlevels.erase("glass")
+		editions.erase("glass")
 	for k in int(v("moonmoth")):
 		if snacks.size() < max_snacks():
 			snacks.append("honey")

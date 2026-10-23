@@ -725,6 +725,10 @@ func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: in
 	if _joker("hoarder") and Run.grown("hoarder") > 0:
 		pts += int(Run.grown("hoarder"))
 		_joker_pop("hoarder", "+%d" % int(Run.grown("hoarder")))
+	if _joker("collector"):
+		var cb := int(Run.v("collector")) * Run.jokers.size()
+		pts += cb
+		_joker_pop("collector", "+%d" % cb)
 	if _joker("frog") and streak >= 3 and streak % 3 == 0:
 		pts += int(Run.v("frog"))
 		_joker_pop("frog", "+%d" % int(Run.v("frog")))
@@ -786,6 +790,24 @@ func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: in
 	if _joker("clean") and _board_empty():
 		x *= Run.v("clean")
 		_joker_pop("clean", "x" + Jokers.fmt(Run.v("clean")))
+	if _joker("bloomer") and _night() >= 4:
+		x *= Run.v("bloomer")
+		_joker_pop("bloomer", "x" + Jokers.fmt(Run.v("bloomer")))
+	if _joker("gremlin"):
+		x *= Run.v("gremlin")
+		_joker_pop("gremlin", "x" + Jokers.fmt(Run.v("gremlin")))
+	if _joker("glass"):
+		x *= Run.v("glass")
+		_joker_pop("glass", "x" + Jokers.fmt(Run.v("glass")))
+	if _joker("party"):
+		var commons := 0
+		for j in Run.jokers:
+			if j != "party" and Jokers.rarity(j) == Jokers.COMMON:
+				commons += 1
+		if commons > 0:
+			var px := 1.0 + Run.v("party") * commons
+			x *= px
+			_joker_pop("party", "x" + Jokers.fmt(px))
 	if _joker("fly") and in_fever:
 		x *= Run.v("fly")
 		_joker_pop("fly", "x" + Jokers.fmt(Run.v("fly")))

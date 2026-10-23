@@ -121,6 +121,20 @@ const JOKERS := {
 		"look": {"body": "tall", "eyes": "specs", "mouth": "line", "extra": ["tophat", "coin"]}},
 	"bargain": {"name": "Bargain Bug", "desc": "Everything in the shop costs {v} gold less", "vals": [1, 2, 3], "price": 7, "rarity": RARE, "color": "d0b040",
 		"look": {"body": "small", "eyes": 2, "mouth": "grin", "extra": ["antennae", "tag"]}},
+	# Risk: big rewards with a catch.
+	"bloomer": {"name": "Late Bloomer", "desc": "Does nothing until night 4, then clears score x{v}", "vals": [2.5, 3, 4], "price": 5, "rarity": UNCOMMON, "color": "c07ab0",
+		"look": {"body": "stalk", "eyes": "sleepy", "mouth": "o", "extra": ["bud"]}},
+	"gremlin": {"name": "Greedy Gremlin", "desc": "Clears score x{v}, but every round has 3 fewer pieces", "vals": [2, 2.5, 3], "price": 7, "rarity": RARE, "color": "5a8a3a",
+		"look": {"body": "small", "eyes": "glow", "mouth": "teeth", "extra": ["ears_pointy", "coins"]}},
+	"glass": {"name": "Glass Golem", "desc": "Clears score x{v}, but it may shatter after a round (1 in 6)", "vals": [3, 3.5, 4], "price": 7, "rarity": RARE, "color": "a0d0e0",
+		"look": {"body": "square", "eyes": "glow", "mouth": "line", "extra": ["shine", "cracks"]}},
+	# Copycats: care about the other monsters.
+	"party": {"name": "Party Blob", "desc": "Clears score +x{v} for each other common monster you own", "vals": [0.3, 0.5, 0.75], "price": 5, "rarity": UNCOMMON, "color": "e070a0",
+		"look": {"body": "blob", "eyes": 2, "mouth": "open", "extra": ["party_hat"]}},
+	"collector": {"name": "Collector Owl", "desc": "+{v} points per clear for every monster you own", "vals": [10, 20, 35], "price": 5, "rarity": UNCOMMON, "color": "9a7a5a",
+		"look": {"body": "blob", "eyes": "specs", "mouth": "beak", "extra": ["tufts", "bag"]}},
+	"mirror": {"name": "Mirror Mimic", "desc": "Boosts the monster to its left: its number x{v}", "vals": [1.5, 1.75, 2], "price": 8, "rarity": RARE, "color": "b8c0d0",
+		"look": {"body": "box", "eyes": 2, "mouth": "grin", "extra": ["mirror"]}},
 	# Legendary: only bosses drop them.
 	"dragon": {"name": "The Sleeping Dragon", "desc": "Every clear scores x{v}, plus x0.25 for every night so far", "vals": [1.5, 2, 2.5], "price": 10, "rarity": LEGENDARY, "color": "b03a3a",
 		"look": {"body": "lump", "eyes": "sleepy", "mouth": "fangs", "extra": ["bat_wings", "horn", "zzz"]}},

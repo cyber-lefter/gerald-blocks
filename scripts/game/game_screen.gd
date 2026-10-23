@@ -685,6 +685,8 @@ func _end_round_win() -> void:
 	if view.boss_beaten:
 		body.append(["Boss squashed! A rare monster waits in the shop.", 28, c_gold])
 	Run.round_won()
+	if Run.broke != "":
+		body.append(["Your %s shattered!" % Run.broke, 28, Color("e07070")])
 	Run.round_n = r + 1
 	if r == Run.last_round() and not Run.endless:
 		_dialog_run_complete()

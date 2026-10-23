@@ -274,6 +274,23 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 			for d in [Vector2(-2, -5), Vector2(2, 5)]:
 				_circle(ci, p + d, 5, WHITE)
 
+	if extra.has("bud"):
+		var bp := Vector2(0, face.y - 30)
+		ci.draw_line(bp + Vector2(0, 14), bp, Color("5aa04a"), 5.0, true)
+		_fill(ci, FmmArt.oval(bp, 10, 13, 12), Color("e090c0"), bp)
+	if extra.has("shine"):
+		ci.draw_line(Vector2(-30, -24), Vector2(-14, -36), Color(1, 1, 1, 0.7), 5.0, true)
+		ci.draw_line(Vector2(-30, -12), Vector2(-24, -17), Color(1, 1, 1, 0.7), 4.0, true)
+	if extra.has("party_hat"):
+		var top := face.y - 32
+		_flat(ci, _tri(Vector2(-16, top + 4), Vector2(4, top - 36), Vector2(18, top + 2)), Color("f0d060"))
+		ci.draw_circle(Vector2(4, top - 38), 6, Color("4a8ae0"))
+	if extra.has("bag"):
+		_fill(ci, FmmArt.oval(Vector2(30, 28), 14, 12, 12), Color("a07a50"), Vector2(30, 28))
+		ci.draw_circle(Vector2(30, 18), 4, FmmArt.C_GOLD)
+	if extra.has("mirror"):
+		_fill(ci, FmmArt.oval(Vector2(-40, 0), 13, 18, 14), Color("d0e0f0"), Vector2(-40, 0))
+		ci.draw_line(Vector2(-44, -8), Vector2(-38, -14), WHITE, 3.0, true)
 	if extra.has("fuse"):
 		var bc := Vector2(30, -26)
 		_circle(ci, bc, 13, Color("2a2a30"))
