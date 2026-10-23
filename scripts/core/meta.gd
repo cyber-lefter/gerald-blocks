@@ -22,12 +22,12 @@ const STAT_TEXT := {
 ## Starting toads: each changes how a run begins. Picked before every new run.
 const TOADS := {
 	"bog": {"name": "Bog Toad", "desc": "No tricks. A good, sleepy toad.", "color": "788a46", "req": []},
-	"rich": {"name": "Rich Toad", "desc": "Starts the run with 12 gold", "color": "b89a40", "req": ["rounds_won", 40]},
-	"big": {"name": "Big Belly Toad", "desc": "Room for 5 monsters", "color": "8a6a4a", "req": ["best_night", 8]},
-	"sleepy": {"name": "Sleepy Toad", "desc": "Starts with 4 naps and can keep 4", "color": "6a7aa0", "req": ["squashed", 300]},
-	"shiny": {"name": "Shiny Toad", "desc": "Shiny monsters turn up 3x as often", "color": "7ab0b8", "req": ["shinies", 8]},
-	"old": {"name": "Old Toad", "desc": "Starts with every totem at Lv 1", "color": "6a6a5a", "req": ["bosses", 10]},
-	"hungry": {"name": "Hungry Toad", "desc": "The shop shows 4 monsters", "color": "b0584a", "req": ["wins", 1]},
+	"rich": {"name": "Rich Toad", "desc": "Starts the run with 12 gold", "color": "b89a40", "req": ["rounds_won", 80]},
+	"big": {"name": "Big Belly Toad", "desc": "Room for 5 monsters", "color": "8a6a4a", "req": ["best_night", 16]},
+	"sleepy": {"name": "Sleepy Toad", "desc": "Starts with 4 naps and can keep 4", "color": "6a7aa0", "req": ["squashed", 600]},
+	"shiny": {"name": "Shiny Toad", "desc": "Shiny monsters turn up 3x as often", "color": "7ab0b8", "req": ["shinies", 16]},
+	"old": {"name": "Old Toad", "desc": "Starts with every totem at Lv 1", "color": "6a6a5a", "req": ["bosses", 20]},
+	"hungry": {"name": "Hungry Toad", "desc": "The shop shows 4 monsters", "color": "b0584a", "req": ["wins", 2]},
 }
 
 ## The toad picker's poster for each toad: "A Guide to <x>maxxing", its real perk in a few words,
