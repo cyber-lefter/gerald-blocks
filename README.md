@@ -12,3 +12,4 @@
 - 0.4.4: 10 new monsters (heroes, combos, economy), 5 legendaries from bosses, doubled toad unlocks, sack 6 gold — [GeraldBlocks-0.4.4-test.apk](GeraldBlocks-0.4.4-test.apk)
 - 0.4.5: risk and copycat monsters, higher late-night targets — [GeraldBlocks-0.4.5-test.apk](GeraldBlocks-0.4.5-test.apk)
 - 0.4.6: hero update (trapping, Sticky Net, archers, bards, hexers) — [GeraldBlocks-0.4.6-test.apk](GeraldBlocks-0.4.6-test.apk)
+- 0.4.7: polish (poster drawings, monster cards, tips, new sounds, Prism cleanup) — [GeraldBlocks-0.4.7-test.apk](GeraldBlocks-0.4.7-test.apk)
