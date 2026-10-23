@@ -70,6 +70,31 @@ const JOKERS := {
 		"look": {"body": "blob", "eyes": "big", "mouth": "beak", "extra": ["tufts"]}},
 	"crab": {"name": "Hermit Crab", "desc": "Unused pieces pay +{v} more gold each", "vals": [1, 2, 3], "price": 6, "rarity": RARE, "color": "d0704a",
 		"look": {"body": "wide", "eyes": "stalks", "mouth": "line", "extra": ["pincers"]}},
+	# Shapes: care which piece you place.
+	"imp": {"name": "Pebble Imp", "desc": "Pieces of 1 or 2 blocks score +{v} when they clear", "vals": [20, 40, 70], "price": 4, "rarity": COMMON, "color": "9a9a8a",
+		"look": {"body": "small", "eyes": 2, "mouth": "grin", "extra": ["ears_pointy", "rock"]}},
+	"ogre": {"name": "Chunky Ogre", "desc": "Pieces of 5+ blocks give +{v} points when placed", "vals": [25, 45, 70], "price": 4, "rarity": COMMON, "color": "7a8a5a",
+		"look": {"body": "lump", "eyes": "small", "mouth": "tusks", "extra": ["club", "brow"]}},
+	"eel": {"name": "Long Eel", "desc": "Straight pieces (3+ long) that clear score x{v}", "vals": [2, 2.5, 3], "price": 5, "rarity": UNCOMMON, "color": "4a8aa0",
+		"look": {"body": "eel", "eyes": 2, "mouth": "fangs", "extra": []}},
+	"corner": {"name": "Corner Crab", "desc": "L-shaped pieces that clear score x{v}", "vals": [2, 2.5, 3], "price": 5, "rarity": UNCOMMON, "color": "4a90a8",
+		"look": {"body": "wide", "eyes": "stalks", "mouth": "smile", "extra": ["corner_shell", "pincers"]}},
+	# Board: care where things are cleared.
+	"lurker": {"name": "Edge Lurker", "desc": "Lines along the board's edge score x{v}", "vals": [2, 3, 4], "price": 4, "rarity": COMMON, "color": "5a6a7a",
+		"look": {"body": "tall", "eyes": "glow", "mouth": "line", "extra": ["ledge"]}},
+	"heart": {"name": "Heart Worm", "desc": "Clears through the middle of the board score +{v}", "vals": [40, 70, 110], "price": 4, "rarity": COMMON, "color": "d07a90",
+		"look": {"body": "grub", "eyes": 2, "mouth": "smile", "extra": ["heart"]}},
+	"moss": {"name": "Moss Sprite", "desc": "+{v} points for every empty cell left after a clear", "vals": [1, 2, 3], "price": 5, "rarity": UNCOMMON, "color": "6a9a4a",
+		"look": {"body": "small", "eyes": "big", "mouth": "o", "extra": ["leaves"]}},
+	"clean": {"name": "Clean Freak", "desc": "Clearing the whole board scores x{v}", "vals": [5, 7, 10], "price": 6, "rarity": RARE, "color": "a0c8d8",
+		"look": {"body": "blob", "eyes": "specs", "mouth": "line", "extra": ["bubbles"]}},
+	# Colour: care which colours you line up.
+	"chameleon": {"name": "Chameleon", "desc": "{v} of every 3 pieces come in the board's most common colour", "vals": [1, 2, 3], "price": 4, "rarity": COMMON, "color": "7ab05a",
+		"look": {"body": "small", "eyes": "big", "mouth": "smile", "extra": ["curl_tail"]}},
+	"paint": {"name": "Paint Goblin", "desc": "One colour is lucky each round: its cleared blocks score +{v}", "vals": [20, 35, 60], "price": 5, "rarity": UNCOMMON, "color": "b05a8a",
+		"look": {"body": "tall", "eyes": 2, "mouth": "grin", "extra": ["ears_pointy", "splats"]}},
+	"slug": {"name": "Patchwork Slug", "desc": "Lines with 4+ different colours score +{v} each", "vals": [50, 80, 120], "price": 5, "rarity": UNCOMMON, "color": "c8a070",
+		"look": {"body": "slug", "eyes": "stalks", "mouth": "smile", "extra": ["patches"]}},
 	# Growing: they get stronger the longer you keep them (Run.grow counts for them).
 	"worm": {"name": "Glutton Worm", "desc": "Grows +{v} points per line for every 5 lines you clear", "vals": [1, 2, 3], "grows": true,
 		"price": 5, "rarity": UNCOMMON, "color": "d08a8a", "look": {"body": "grub", "eyes": 2, "mouth": "open", "extra": []}},
@@ -116,7 +141,9 @@ const SNACKS := {
 }
 
 const CHARMS := {
-	"den": {"name": "Bigger Den", "desc": "Room for one more monster (5)", "price": 8, "color": "a262aa"},
+	"den": {"name": "Bigger Den", "desc": "Room for one more monster", "price": 8, "color": "a262aa"},
+	"den2": {"name": "Den II", "desc": "Room for another monster (needs the Bigger Den)", "price": 10, "color": "8a4a9a", "needs": "den"},
+	"den3": {"name": "Den III", "desc": "Room for yet another monster (needs Den II)", "price": 12, "color": "6a3a8a", "needs": "den2"},
 	"pocket": {"name": "Deep Pocket", "desc": "Room for one more snack (3)", "price": 5, "color": "e88aa8"},
 	"pillow": {"name": "Thick Pillow", "desc": "The toad can keep one more nap, and gets it now", "price": 6, "color": "e0d8e4"},
 	"purse": {"name": "Fat Purse", "desc": "Savings pay up to +2 more gold", "price": 5, "color": "f0d060"},
@@ -254,7 +281,8 @@ static func roll_offers(rng: RandomNumberGenerator, owned: Array, levels: Dictio
 	out.append("sack")
 	var left: Array = []
 	for id in CHARMS:
-		if not charms.has(id):
+		var needs := str(CHARMS[id].get("needs", ""))
+		if not charms.has(id) and (needs == "" or charms.has(needs)):
 			left.append(id)
 	if not left.is_empty():
 		out.append(left[rng.randi_range(0, left.size() - 1)])

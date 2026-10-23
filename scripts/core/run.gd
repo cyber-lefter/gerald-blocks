@@ -309,7 +309,11 @@ static func round_won() -> void:
 
 
 static func max_jokers() -> int:
-	return Jokers.MAX_JOKERS + (1 if charms.has("den") else 0) + (1 if toad == "big" else 0)
+	var dens := 0
+	for d in ["den", "den2", "den3"]:
+		if charms.has(d):
+			dens += 1
+	return Jokers.MAX_JOKERS + dens + (1 if toad == "big" else 0)
 
 
 static func max_snacks() -> int:

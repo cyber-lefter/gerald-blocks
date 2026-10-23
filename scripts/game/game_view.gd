@@ -29,6 +29,8 @@ static var fever_amount := 0.0
 var mode := "classic"
 var level: Dictionary = {}
 var palette: Array = []
+## Paint Goblin's lucky colour this round (palette index), or -1.
+var lucky_color := -1
 var theme: Dictionary = {}
 var spark_style := "star"
 var reduced := false
@@ -200,6 +202,8 @@ func setup(p_mode: String, p_level: Dictionary) -> void:
 		spawn_in += _hero_delay()
 		if _joker("moth"):
 			score = int(Run.v("moth"))
+		if _joker("paint"):
+			lucky_color = randi_range(0, 7)
 		if raid:
 			_spawn_hero()
 			_spawn_hero()
@@ -387,8 +391,27 @@ func _deal() -> void:
 		if bombs and n >= 2 and dealer.rng.randf() < 0.1:
 			b = dealer.rng.randi_range(0, n - 1)
 		tray[i] = {"shape": s, "color": order[i], "bomb": b}
+	if _joker("chameleon"):
+		var top := _top_color()
+		if top >= 0:
+			for i in mini(int(Run.v("chameleon")), 3):
+				if tray[i] != null:
+					tray[i]["color"] = top
 	tray_t = time
 	tray_return = [null, null, null]
+
+
+## The palette index most blocks on the board have (-1 on an empty board).
+func _top_color() -> int:
+	var counts := {}
+	for v in color:
+		if v > 0 and v != STONE:
+			counts[v - 1] = int(counts.get(v - 1, 0)) + 1
+	var best := -1
+	for c in counts:
+		if best < 0 or int(counts[c]) > int(counts[best]):
+			best = c
+	return best
 
 
 # ---------------------------------------------------------------- input
@@ -526,6 +549,9 @@ func _place(slot: int, gx: int, gy: int) -> void:
 	score += cells.size()
 	if _joker("tadpole"):
 		score += cells.size() * int(Run.v("tadpole"))
+	if _joker("ogre") and cells.size() >= 5:
+		score += int(Run.v("ogre"))
+		_joker_pop("ogre", "+%d" % int(Run.v("ogre")))
 	# Small random pitch changes keep repeated placements from sounding mechanical; bigger pieces sound heavier.
 	Sfx.play("place", randf_range(0.95, 1.05) * (1.08 - 0.02 * cells.size()))
 	Sfx.vibrate(16, false, 0.6)
@@ -558,6 +584,7 @@ func _place(slot: int, gx: int, gy: int) -> void:
 				hit[y * N + x] = true
 			beams.append({"row": false, "i": x, "t0": time, "color": pc})
 		var line_cells := hit.size()
+		var ctx := _clear_context(sh, rows, cols, hit)
 		var bombs := _expand_bombs(hit)
 		var blasted := hit.size() - line_cells
 		var orb_from: Array = []
@@ -570,7 +597,7 @@ func _place(slot: int, gx: int, gy: int) -> void:
 		var mono_x := int(Run.v("toadstool")) - 1 if _joker("toadstool") else 1
 		var pts := int(line_count * line_count * 20 * mult) * (1 + mono * mono_x)
 		pts += blasted * 5 + int(res["gems"]) * 50
-		pts = _joker_points(pts, line_count, rows, cols, mono)
+		pts = _joker_points(pts, line_count, rows, cols, mono, ctx)
 		if honey:
 			honey = false
 			pts *= 3
@@ -658,7 +685,7 @@ func _joker(id: String) -> bool:
 
 ## Monsters, totems and shiny monsters that change what a clear is worth. Points are added
 ## first, then the multipliers stack. Each monster that fires gets a pop.
-func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: int) -> int:
+func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: int, ctx := {}) -> int:
 	if mode != "run":
 		return pts
 	# Totems: one pop for all of them.
@@ -688,6 +715,29 @@ func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: in
 	if _joker("hoarder") and Run.grown("hoarder") > 0:
 		pts += int(Run.grown("hoarder"))
 		_joker_pop("hoarder", "+%d" % int(Run.grown("hoarder")))
+	if _joker("imp") and int(ctx.get("blocks", 0)) <= 2:
+		pts += int(Run.v("imp"))
+		_joker_pop("imp", "+%d" % int(Run.v("imp")))
+	if _joker("heart") and ctx.get("middle", false):
+		pts += int(Run.v("heart"))
+		_joker_pop("heart", "+%d" % int(Run.v("heart")))
+	if _joker("slug") and int(ctx.get("motley", 0)) > 0:
+		var m := int(Run.v("slug")) * int(ctx["motley"])
+		pts += m
+		_joker_pop("slug", "+%d" % m)
+	if _joker("paint") and int(ctx.get("lucky", 0)) > 0:
+		var l := int(Run.v("paint")) * int(ctx["lucky"])
+		pts += l
+		_joker_pop("paint", "+%d" % l)
+	if _joker("moss"):
+		var empty := 0
+		for v in color:
+			if v == 0:
+				empty += 1
+		var e := int(Run.v("moss")) * empty
+		if e > 0:
+			pts += e
+			_joker_pop("moss", "+%d" % e)
 	var foil := Run.shiny("foil")
 	if foil > 0:
 		pts += 30 * foil
@@ -711,6 +761,18 @@ func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: in
 				x *= Run.v("grub")
 				_joker_pop("grub", "x" + Jokers.fmt(Run.v("grub")))
 				break
+	if _joker("eel") and ctx.get("straight", false):
+		x *= Run.v("eel")
+		_joker_pop("eel", "x" + Jokers.fmt(Run.v("eel")))
+	if _joker("corner") and ctx.get("ell", false):
+		x *= Run.v("corner")
+		_joker_pop("corner", "x" + Jokers.fmt(Run.v("corner")))
+	if _joker("lurker") and ctx.get("edge", false):
+		x *= Run.v("lurker")
+		_joker_pop("lurker", "x" + Jokers.fmt(Run.v("lurker")))
+	if _joker("clean") and _board_empty():
+		x *= Run.v("clean")
+		_joker_pop("clean", "x" + Jokers.fmt(Run.v("clean")))
 	if _joker("mouth") and line_count >= 3:
 		x *= Run.v("mouth")
 		_joker_pop("mouth", "x" + Jokers.fmt(Run.v("mouth")))
@@ -725,6 +787,40 @@ func _joker_points(pts: int, line_count: int, rows: Array, cols: Array, mono: in
 		x *= 1.5
 		joker_pops.append("Rainbow x1.5")
 	return int(pts * x)
+
+
+## What the shape-, board- and colour-minded monsters need to know about a clear, read before
+## the blocks are gone: the piece that did it, where the lines were, and their colours.
+func _clear_context(sh: Dictionary, rows: Array, cols: Array, hit: Dictionary) -> Dictionary:
+	var g := int(sh.get("group", -1))
+	var ctx := {"blocks": sh["cells"].size(), "straight": g in [2, 3, 4], "ell": g in [6, 7, 8, 13],
+		"middle": false, "edge": false, "motley": 0, "lucky": 0}
+	for k in rows + cols:
+		if k == 0 or k == N - 1:
+			ctx["edge"] = true
+		if k == N / 2 - 1 or k == N / 2:
+			ctx["middle"] = true
+	for y in rows:
+		if _line_colors(true, y) >= 4:
+			ctx["motley"] += 1
+	for x in cols:
+		if _line_colors(false, x) >= 4:
+			ctx["motley"] += 1
+	if lucky_color >= 0:
+		for i in hit:
+			if color[int(i)] == lucky_color + 1:
+				ctx["lucky"] += 1
+	return ctx
+
+
+## How many different colours a full row or column holds.
+func _line_colors(is_row: bool, k: int) -> int:
+	var seen := {}
+	for j in N:
+		var v := color[k * N + j if is_row else j * N + k]
+		if v > 0 and v != STONE:
+			seen[v] = true
+	return seen.size()
 
 
 func _joker_pop(id: String, what: String) -> void:
@@ -900,6 +996,16 @@ func _after_move() -> void:
 
 ## A boss round with the goal reached plays on (bonus time) while the boss is on the board and
 ## pieces are left: squashing him drops a rare monster. Otherwise the round ends as a win.
+## Squash mode bosses: the first comes at 40 pieces, the second 30 later, then one every 20.
+## Returns which boss (0, 1, 2...) arrives at piece n, or -1 if none does.
+static func _squash_boss_no(n: int) -> int:
+	if n == 40:
+		return 0
+	if n >= 70 and (n - 70) % 20 == 0:
+		return 1 + (n - 70) / 20
+	return -1
+
+
 func _boss_chase() -> bool:
 	if not boss_round or boss_beaten:
 		return false
@@ -945,8 +1051,8 @@ func _after_run_move() -> void:
 			_advance_heroes()
 			_hero_tricks()
 		spawn_in -= 1
-		if mode == "squash" and placements % 40 == 0:
-			_spawn_boss(Run.BOSSES[(placements / 40 - 1) % Run.BOSSES.size()])
+		if mode == "squash" and _squash_boss_no(placements) >= 0:
+			_spawn_boss(Run.BOSSES[_squash_boss_no(placements) % Run.BOSSES.size()])
 			say(G_BOSS)
 		if spawn_in <= 0 and not (boss_round and score >= target):
 			var night := _night()
@@ -1938,6 +2044,19 @@ func _draw_blocks() -> void:
 			BlockArt.draw_gem(self, c, cell * sc, time)
 		if ice[i] > 0:
 			BlockArt.draw_ice(self, c, cell, ice[i])
+		if v == lucky_color + 1 and lucky_color >= 0 and not lost:
+			_draw_lucky(c + Vector2(cell * 0.22, -cell * 0.22), cell * 0.13 * sc)
+
+
+## Paint Goblin's mark on lucky-colour blocks: a little twinkling star.
+func _draw_lucky(p: Vector2, r: float) -> void:
+	r *= 1.0 + 0.15 * sin(time * 5.0 + p.x * 0.05)
+	var pts := PackedVector2Array()
+	for k in 10:
+		var a := -PI / 2.0 + PI * k / 5.0
+		pts.append(p + Vector2(cos(a), sin(a)) * (r if k % 2 == 0 else r * 0.45))
+	draw_colored_polygon(pts, Color("fff4c0"))
+	draw_polyline(pts + PackedVector2Array([pts[0]]), Color(0.15, 0.1, 0.05, 0.7), 1.5, true)
 
 
 func _draw_heroes() -> void:

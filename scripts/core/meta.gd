@@ -72,6 +72,9 @@ const MONSTER_REQ := {
 	"hoarder": ["bosses", 1],
 	"octo": ["lines", 600],
 	"yeti": ["best_night", 6],
+	"paint": ["rounds_won", 15],
+	"slug": ["runs", 8],
+	"clean": ["lines", 400],
 }
 
 

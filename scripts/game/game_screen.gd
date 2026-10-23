@@ -625,7 +625,7 @@ func _revive() -> void:
 # ---------------------------------------------------------------- squash mode
 
 func _show_squash_intro() -> void:
-	var body: Array = [["No goal, no piece limit. Heroes keep coming, faster and faster, with a boss every 40 pieces.", 28, c_muted]]
+	var body: Array = [["No goal, no piece limit. Heroes keep coming, faster and faster. The first boss shows up at 40 pieces, then more and more often.", 28, c_muted]]
 	body.append(["Squash as many as you can before the toad loses his 3 naps.", 28, c_muted])
 	var best := Meta.stat("squash_best")
 	if best > 0:
@@ -821,12 +821,12 @@ class JokerStrip extends Control:
 
 	func _draw() -> void:
 		var n := Run.jokers.size()
-		var step := size.y * 1.15
+		var step := minf(size.y * 1.15, size.x / maxf(1.0, n))
 		for k in n:
 			var id: String = Run.jokers[k]
 			var c := Vector2(size.x / 2.0 + (k - (n - 1) / 2.0) * step, size.y / 2.0)
 			var e := str(Run.editions.get(id, ""))
-			Jokers.draw_icon(self, id if e == "" else "%s|%s" % [id, e], c, size.y * 0.42, t + k)
+			Jokers.draw_icon(self, id if e == "" else "%s|%s" % [id, e], c, minf(size.y * 0.42, step * 0.4), t + k)
 			# Level pips under the face.
 			for j in Run.level(id) - 1:
 				var p := c + Vector2((j - (Run.level(id) - 2) / 2.0) * 9.0, size.y * 0.46)

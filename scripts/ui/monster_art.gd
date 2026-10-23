@@ -62,6 +62,10 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 			face = Vector2(0, -4)
 		"ghost":
 			face = Vector2(0, -8)
+		"eel":
+			face = Vector2(-28, -8)
+		"slug":
+			face = Vector2(-26, 0)
 
 	# Behind the body.
 	if extra.has("bat_wings"):
@@ -126,6 +130,22 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 			var tip := Vector2(sx * 20 + sin(t * 3.0 + sx) * 3, face.y - 52)
 			ci.draw_line(Vector2(sx * 8, face.y - 22), tip, INK, 4.0, true)
 			_circle(ci, tip, 5, col.lightened(0.3))
+	if extra.has("curl_tail"):
+		var pts := PackedVector2Array()
+		for j in 22:
+			var a := j * 0.42 + sin(t * 2.0) * 0.1
+			var rad := 18.0 - j * 0.7
+			pts.append(Vector2(36, 20) + Vector2(cos(a), sin(a)) * rad)
+		ci.draw_polyline(pts, INK, 12.0, true)
+		ci.draw_polyline(pts, col, 6.0, true)
+	if extra.has("club"):
+		var tip := Vector2(56, -52 + sin(t * 3.0) * 3)
+		ci.draw_line(Vector2(34, 18), tip, INK, 14.0, true)
+		ci.draw_line(Vector2(34, 18), tip, Color("a07a50"), 8.0, true)
+		_fill(ci, FmmArt.oval(tip, 15, 17, 12), Color("a07a50"), tip)
+	if extra.has("corner_shell"):
+		var sh := PackedVector2Array([Vector2(-44, -4), Vector2(-44, -58), Vector2(-18, -58), Vector2(-18, -34), Vector2(44, -34), Vector2(44, -4)])
+		_fill(ci, sh, Color("e0c890"), Vector2(-18, -34))
 	if extra.has("pincers"):
 		for sx in [-1.0, 1.0]:
 			var p := Vector2(sx * 50, -8 + sin(t * 4.0 + sx) * 3)
@@ -177,6 +197,18 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 		"box":
 			_fill(ci, _rect(-40, -10, 40, 36), col)
 			ci.draw_line(Vector2(-40, 12), Vector2(40, 12), C_TRIM, 5.0)
+		"eel":
+			var pts := PackedVector2Array()
+			for j in 12:
+				var x := -26.0 + j * 7.0
+				pts.append(Vector2(x, 2 + sin(t * 4.0 - j * 0.7) * 9 * j / 11.0))
+			ci.draw_polyline(pts, INK, 30.0, true)
+			ci.draw_polyline(pts, col, 20.0, true)
+			ci.draw_polyline(pts, col.lightened(0.25), 6.0, true)
+			_fill(ci, FmmArt.oval(face, 22, 20, 14), col, face)
+		"slug":
+			_fill(ci, FmmArt.oval(Vector2(8, 16), 48, 20, 18), col, Vector2(8, 16))
+			_fill(ci, FmmArt.oval(face, 22, 22, 14), col, face)
 		_:
 			_fill(ci, FmmArt.oval(Vector2.ZERO, 40, 36, 16), col)
 
@@ -226,6 +258,33 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 			for d in [Vector2(-2, -5), Vector2(2, 5)]:
 				_circle(ci, p + d, 5, WHITE)
 
+	if extra.has("rock"):
+		_fill(ci, FmmArt.blobp(Vector2(26, 26), 15, 12, 8, 3, 0.15), Color("8a8274"), Vector2(26, 26))
+	if extra.has("leaves"):
+		for k in 3:
+			var a := -PI / 2.0 + (k - 1) * 0.6
+			var b := Vector2(0, face.y - 22) + Vector2(cos(a), sin(a)) * 6
+			var tip := Vector2(0, face.y - 22) + Vector2(cos(a), sin(a)) * 30
+			var side := Vector2(-sin(a), cos(a)) * 8
+			_flat(ci, PackedVector2Array([b, (b + tip) / 2.0 + side, tip, (b + tip) / 2.0 - side]), Color("5aa04a"))
+	if extra.has("heart"):
+		var hc := Vector2(10, 18)
+		_flat(ci, PackedVector2Array([hc + Vector2(0, 12), hc + Vector2(-12, 0), hc + Vector2(-10, -8), hc + Vector2(-4, -9),
+			hc + Vector2(0, -4), hc + Vector2(4, -9), hc + Vector2(10, -8), hc + Vector2(12, 0)]), Color("e04a5a"))
+	if extra.has("bubbles"):
+		for k in 4:
+			var bp := Vector2(-38 + k * 24, -40 - fmod(t * 14.0 + k * 9.0, 18.0))
+			ci.draw_arc(bp, 6.0 + k % 2 * 3.0, 0, TAU, 14, INK, 3.0, true)
+			ci.draw_circle(bp, 4.0 + k % 2 * 3.0, Color(1, 1, 1, 0.35))
+	if extra.has("splats"):
+		var cols := [Color("e04a5a"), Color("4a8ae0"), Color("f0d060")]
+		for k in 3:
+			_circle(ci, Vector2(-22 + k * 20, 26 - (k % 2) * 6), 6, cols[k])
+	if extra.has("patches"):
+		var cols := [Color("e04a5a"), Color("4a8ae0"), Color("f0d060"), Color("6ab04a")]
+		for k in 4:
+			_flat(ci, _rect(-4 + k * 12, 6 + (k % 2) * 6, 6 + k * 12, 16 + (k % 2) * 6), cols[k])
+
 	_eyes(ci, look.get("eyes", 2), face, t, col)
 	if extra.has("nose"):
 		_circle(ci, face + Vector2(0, 8), 7, Color("d07a8a"))
@@ -234,6 +293,13 @@ static func draw(ci: CanvasItem, look: Dictionary, c: Vector2, r: float, t: floa
 			for k in 2:
 				ci.draw_line(face + Vector2(sx * 16, 10 + k * 6), face + Vector2(sx * 40, 6 + k * 10), INK, 2.5, true)
 	_mouth(ci, str(look.get("mouth", "line")), face + Vector2(0, 18))
+	if extra.has("ledge"):
+		# Peeking over the edge of the board.
+		_flat(ci, _rect(-50, 22, 50, 46), Color("4a3a2c"))
+		for k in 4:
+			ci.draw_line(Vector2(-50 + k * 33, 22), Vector2(-50 + k * 33, 46), INK, 3.0)
+		for sx in [-1.0, 1.0]:
+			_fill(ci, FmmArt.oval(Vector2(sx * 22, 22), 9, 6, 10), col, Vector2(sx * 22, 22))
 	_end(ci)
 
 
@@ -462,6 +528,11 @@ static func draw_charm(ci: CanvasItem, id: String, c: Vector2, r: float, t: floa
 	match id:
 		"den":
 			_flat(ci, PackedVector2Array([s + Vector2(-14, 10), s + Vector2(-14, -2), s + Vector2(0, -14), s + Vector2(14, -2), s + Vector2(14, 10)]), Color("6a4a34"))
+		"den2", "den3":
+			var n := 2 if id == "den2" else 3
+			for k in n:
+				var o := s + Vector2((k - (n - 1) / 2.0) * 10.0, 2)
+				_flat(ci, PackedVector2Array([o + Vector2(-7, 8), o + Vector2(-7, -1), o + Vector2(0, -9), o + Vector2(7, -1), o + Vector2(7, 8)]), Color("6a4a34"))
 		"pocket":
 			_flat(ci, PackedVector2Array([s + Vector2(-12, -10), s + Vector2(12, -10), s + Vector2(10, 10), s + Vector2(-10, 10)]), Color("a07a50"))
 		"pillow":

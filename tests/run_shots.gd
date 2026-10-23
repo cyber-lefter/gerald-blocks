@@ -26,7 +26,7 @@ func _ready() -> void:
 	await _wait(0.3)
 	await _shot("run_round1")
 
-	Run.jokers = ["blob", "worm", "bat"]
+	Run.jokers = ["blob", "worm", "bat", "paint"]
 	Run.jlevels = {"blob": 2, "worm": 1, "bat": 3}
 	Run.editions = {"bat": "foil"}
 	Run.grow = {"worm": 23}
@@ -43,6 +43,13 @@ func _ready() -> void:
 	shop.list.get_parent().scroll_vertical = 900
 	await _wait(0.3)
 	await _shot("run_shop2")
+	# The new families and the second den in the shop.
+	Run.charms = ["dice", "den"]
+	Run.offers = ["eel", "paint|foil", "corner", "t_two", "t_colour", "honey", "sack", "den2"]
+	router.show_run_shop()
+	await _wait(0.6)
+	await _shot("run_shop_new")
+	shop = router.current
 	Run.offers = ["blob", "yeti|rainbow", "t_many", "sack"]
 	Run.gold = 40
 	shop._buy(3)
