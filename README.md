@@ -11,3 +11,4 @@
 - 0.4.3: pricier totems/level-ups, sell from a full den on boss drops, harder toad unlocks — [GeraldBlocks-0.4.3-test.apk](GeraldBlocks-0.4.3-test.apk)
 - 0.4.4: 10 new monsters (heroes, combos, economy), 5 legendaries from bosses, doubled toad unlocks, sack 6 gold — [GeraldBlocks-0.4.4-test.apk](GeraldBlocks-0.4.4-test.apk)
 - 0.4.5: risk and copycat monsters, higher late-night targets — [GeraldBlocks-0.4.5-test.apk](GeraldBlocks-0.4.5-test.apk)
+- 0.4.6: hero update (trapping, Sticky Net, archers, bards, hexers) — [GeraldBlocks-0.4.6-test.apk](GeraldBlocks-0.4.6-test.apk)
